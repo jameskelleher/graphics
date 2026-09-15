@@ -1,0 +1,30 @@
+<body bgcolor="black">
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src="../webgl.js"></script>
+<script type="module">
+
+function Scene(vertexShader, fragmentShader) {
+    this.vertexShader = vertexShader;
+    this.fragmentShader = fragmentShader;
+
+    let startTime = Date.now() / 1000;
+
+    this.update = () => {
+        setUniform('1f', 'uTime', Date.now() / 1000 - startTime);
+    }
+}
+
+async function loadShader(url) {
+    const res = await fetch(url);
+    return res.text();
+}
+
+const [vertexShader, fragmentShader] = await Promise.all([
+    loadShader('scene.vert'),
+    loadShader('scene.frag')
+]);
+
+gl_start(canvas, new Scene(vertexShader, fragmentShader));
+</script>
+</center>
+</body>
