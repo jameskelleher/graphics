@@ -1,0 +1,319 @@
+<hr color=white size=75><table><tr><td width=75></td><td>
+<font face=helvetica>
+<center><big><b>
+
+Notes for September 16 class -- Introduction to Ray Tracing
+
+</b></big></center>
+<hr color=white size=50>
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+<TABLE><TR><TD 100%>
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Gamma correction</b><p>
+
+<blockquote>
+Displays are adjusted for human perception using a "gamma curve",
+since people can perceive a vary large range of brightness.
+<p>
+For example, the image to the right shows the values 0...255 on the horizontal
+axis, the resulting actual displayed brightness on the virtual axis.
+<p>
+Various displays differ, but this adjustment is generally approximately  x<sup>2</sup>
+<p>
+Since all of our calculations are really summing actual photons of light,
+we need to do all our math in linear brightness, and then do a gamma correction
+when we are all finished:
+<blockquote>
+Roughly: c &rarr; sqrt(c)
+</blockquote>
+</blockquote>
+
+</td><td width=50 valign=center><i>Output brightness</i></td><td width=30%>
+<center>
+<img src=imgs/gamma.png width=200>
+<br>
+<i>Input values 0 ... 255</i>
+</center>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=80%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Forming a ray</i></b><p>
+
+<blockquote>
+At each pixel, a ray from the origin V = (0,0,0) shoots into the scene, hitting a virtual screen which is on the z = -f plane.
+<p>
+We refer to f as the "focal length" of this virtual camera.
+<p>
+The ray toward any pixel aims at:  (x, y, -f), where -1 &le; x &le; +1 and -1 &le; y &le; +1.
+<p>
+So the ray direction W = normalize( vec3(x, y, -f) ).
+<p>
+In order to render an image of a scene at any pixel,
+we need to follow the ray at that pixel and see what object (if any)
+the ray encounters first.
+<p>
+In other words, the nearest object at a point V + Wt, where t > 0.
+</blockquote>
+</blockquote>
+
+</td><td width=50>&nbsp;</td><td width=30%>
+<img src=imgs/forming_a_ray.png width=400>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Defining a sphere</i></b><p>
+
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+<blockquote>
+We can describe a sphere in a GLSL vector of length 4:
+<blockquote>
+<code><big>vec4 sphere = vec4(x,y,z,r);</big></code>
+</blockquote>
+where (x,y,z) is the center of the sphere, and r is the sphere radius.
+<p>
+
+As we discussed in class, the components of a vec4 in GLSL can be accessed in one of
+two ways:
+<pre>
+v.x, v.y, v.z, v.w <font color=blue>// when thought of as a 4D point</font>
+v.r, v.g, v.b, v.a <font color=blue>// when thought of as a color + alpha</font>
+</pre>
+
+So to access the value of your sphere's radius in a fragment shader <code>vec4</code>,
+you will want to refer to it as sphere.w (not sphere.r).
+
+</td><td width=150>&nbsp;</td><td width=30%>
+<img src=imgs/xyzr.png width=300>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Finding where a ray hits a sphere</i></b><p>
+
+<blockquote>
+V = V - S.xyz <font color=blue>// vector from center of sphere to ray origin.</font>
+<p>
+(V + Wt)<sup>2</sup> = r<sup>2</sup> <font color=blue>// find a point along ray distance r from sphere center.</font>
+<p>
+(V + Wt)<sup>2</sup> - r<sup>2</sup> = 0 <font color=blue>// need to solve for t.</font>
+<p>
+Generally, if a and b are vectors, then a &bullet; b = (
+a<sub>x</sub> * b<sub>x</sub> +
+a<sub>y</sub> * b<sub>y</sub> +
+a<sub>z</sub> * b<sub>z</sub> )
+<p>
+Multiplying the terms out, we need to solve the quadratic equation:
+<blockquote>
+<font color=#ff0000>(W&bullet;W)</font> t<sup>2</sup> +
+<font color=#00a000>2 (W&bullet;V)</font> t +
+<font color=#0000ff>(V&bullet;V) - r<sup>2</sup></font> = 0
+</blockquote>
+<p>
+In general, the quadratic equation is t = (-b &plusmn; sqrt(b * b - 4 * a * c)) / (2 * a)
+<p>
+Since W is unit length, the first term W&bullet;W in this equation is just 1.
+<p>
+And we only need the first root (the one entering the sphere).
+<p>
+So we can simplify to: t = -W&bull;V - sqrt( (W&bull;V)<sup>2</sup> - (V&bull;V - r<sup>2</sup>) )
+</blockquote>
+
+</td><td width=50>&nbsp;</td><td width=30%>
+<img src=imgs/ray_hits_sphere.png width=400>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=100%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Finding the nearest intersection</i></b><p>
+
+<blockquote>
+Compute the intersection to all spheres in the scene.
+<br>
+The visible sphere at this pixel, if any, is the one with smallest positive t.
+</blockquote>
+
+<td width=50>&nbsp;</td><td width=0%>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Computing the surface point</i></b><p>
+
+Once we know the value of t, we can just plug it into the ray equation to get the location of the surface point on the sphere that is visible at this ray, as shown in the equation below and in the figure to the right:
+
+<blockquote>
+P = V + W t
+</blockquote>
+
+<td width=50>&nbsp;</td><td width=30%>
+<img src=imgs/compute_point.png width=250>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Computing the surface normal</i></b><p>
+
+We now need to compute the surface normal in order to compute how the sphere interacts with light to produce a final color at this pixel.
+<p>
+
+The "surface normal" is the unit length vector that is perpendicular to the surface of the sphere -- the "up" direction if you are standing on the surface.
+<p>
+
+For a sphere, we can get this by subtracting the center of the sphere from the surface point S,
+and then normalizing:
+
+<blockquote>
+N = normalize(P - S.xyz)
+</blockquote>
+
+<td width=250>&nbsp;</td><td width=30%>
+<img src=imgs/finding_normal.png width=250>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=70%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>A simple shader</i></b><p
+
+<blockquote>
+A simple light source at infinity can be defined as an rgb color, together with an xyz light direction:
+<p>
+<pre>
+   vec3 lightColor;     <font color=blue>// rgb</font>
+   vec3 lightDirection; <font color=blue>// xyz</font>
+</pre>
+
+A diffuse simple surface material can be defined by an rgb "ambient" component,
+which is independent of any particular light source, and an rgb "diffuse" component,
+which is added for each light source:
+
+<p>
+<pre>
+   vec3 ambient;   <font color=blue>// rgb</font>
+   vec3 diffuse;   <font color=blue>// rgb</font>
+</pre>
+
+The figure to the right shows a diffuse sphere, where the point at
+each pixel is computed as:
+
+<blockquote>
+ambient + lightColor * diffuse * max(0, normal &bullet; lightDirection)
+</blockquote>
+</blockquote>
+
+<td width=50>&nbsp;</td><td width=30%>
+<img src=imgs/diffuse_shaded.png width=300>
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+ 
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<p><table><tr>
+<td width=90%>
+<font face=helvetica>
+
+<p><b>Ray tracing: <i>Multiple light sources</i></b><p>
+
+If the scene contains more than one light source, then pixel color
+for points on the sphere can be computed by:
+
+
+<blockquote>
+ambient + <big><big>&sum;</big></big><sub>n</sub> <big>(</big>
+lightColor<sub>n</sub> * diffuse * max(0, normal &bullet; lightDirection<sub>n</sub>)
+<big>)</big>
+</blockquote>
+
+where n iterates over the lights in the scene.
+
+</td>
+</tr></table>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+
+
+
+
+
+</TD></TR></TABLE>
+
+
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>
+<hr color=white size=1000>
+</font>
+</td><td width=75>&nbsp;</td></tr></table>
