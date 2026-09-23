@@ -1,11 +1,10 @@
 #version 300 es
 precision highp float;
 
-const int NS = 10;
+const int NS = 50;
 const int NL = 2;
 
-uniform float mouseX;
-uniform float mouseY;
+uniform float uTime;
 uniform vec4 uS[NS];
 uniform vec3 uL[NL];
 uniform vec3 uC[NL];
@@ -21,7 +20,7 @@ float fl = 3.f;
 
 float raySphere(vec3 V, vec3 W, vec4 S) {
     V -= S.xyz;
-    float r = S.w / (.2 + sqrt(pow(mouseX - S.x, 2.) + pow(mouseY + S.y, 2.)));
+    float r = S.w;
     float VW = dot(V, W);
     float VV = dot(V, V);
     float d = VW * VW - (VV - r * r);
