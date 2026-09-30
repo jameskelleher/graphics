@@ -1,0 +1,217 @@
+<body bgcolor=#80a0ff>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl.js></script>
+<script>
+
+// Function to normalize a 3D vector
+
+let normalize = v => {
+   let s = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+   return [ v[0] / s, v[1] / s, v[2] / s ];
+}
+
+// Declare number of spheres and number of light sources
+
+const NS = 5;
+const NL = 2;
+
+function Scene() {
+
+   // The vertex shader
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos;
+   out vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.);
+      vPos = aPos;
+   }`;
+
+   // The fragment shader
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   // All uniforms (data values are sent from CPU)
+
+   uniform float uTime;
+
+   uniform vec4 uSG[` + NS + `];
+   uniform vec3 uSA[` + NS + `];
+   uniform vec3 uSD[` + NS + `];
+   uniform vec4 uSS[` + NS + `];
+
+   uniform vec3 uLG[` + NL + `];
+   uniform vec3 uLC[` + NL + `];
+
+   in  vec3 vPos;
+   out vec4 fragColor;
+
+   // Focal length of the camera
+
+   float fl = 3.;
+
+   // A function to trace a ray to a sphere
+
+   float raySphere(vec3 V, vec3 W, vec4 S) {
+      V -= S.xyz;
+      float r = S.w;
+      float VW = dot(V, W);
+      float VV = dot(V, V);
+      float d = VW * VW - (VV - r*r);
+      if (d < 0.)
+         return -1.;
+      return -VW - sqrt(d);
+   }
+
+   void main() {
+
+      fragColor = vec4(0.);
+
+      // Define the ray from the eye to this pixel
+
+      vec3 V = vec3(0.);
+      vec3 W = normalize(vec3(vPos.xy, -fl));
+
+      // Find the nearest sphere along the ray
+
+      float tMin = 1000.;
+      for (int i = 0 ; i < ` + NS + ` ; i++) {
+         float t = raySphere(V, W, uSG[i]);
+         if (t >= 0. && t < tMin) {
+
+	    tMin = t;
+
+            fragColor = vec4(1.);
+
+            // Find the point on the sphere surface
+
+	    vec3 P = V + t * W;
+
+	    // Find the surface normal
+
+            vec3 N = normalize(P - uSG[i].xyz);
+
+	    // Ambient component of lighting
+
+	    vec3 c = uSA[i];
+
+	    // Add diffuse and specular components from every light source
+
+	    for (int j = 0 ; j < ` + NL + ` ; j++) {
+
+	       vec3 L = uLG[j];
+	       vec3 R = 2. * dot(N,L) * N - L;
+
+	       vec3 cj = .8 * max(0., dot(N, L)) * uSD[i] * uLC[j]
+	               + pow(max(0., dot(-W,R)), uSS[i].a) * uSS[i].rgb * uLC[j];
+
+               // See whether this point is in shadow from this light source.
+
+               vec3 Ws = L;
+               vec3 Vs = P + .001 * L;
+
+               for (int i = 0 ; i < ` + NS + ` ; i++)
+	          if (raySphere(Vs, Ws, uSG[i]) > 0.)
+		     cj = vec3(0.);
+
+               c += cj;
+            }
+
+	    // Add reflection
+
+	    vec3 cr = vec3(0.);
+
+	    vec3 Wr = W - 2. * dot(N,W) * N;
+	    vec3 Vr = P + .001 * Wr;
+
+            float tMin = 1000.;
+            for (int i = 0 ; i < ` + NS + ` ; i++) {
+	       float t = raySphere(Vr, Wr, uSG[i]);
+	       if (t >= 0. && t < tMin) {
+	          tMin = t;
+
+		  // If reflected ray hits a sphere, compute shading for that sphere.
+
+		  vec3 P = Vr + t * Wr;
+		  vec3 N = normalize(P - uSG[i].xyz);
+
+		  cr = uSA[i];
+	          for (int j = 0 ; j < ` + NL + ` ; j++) {
+	             vec3 L = uLG[j];
+	             vec3 R = 2. * dot(N,L) * N - L;
+		     cr += .8 * max(0., dot(N, L)) * uSD[i] * uLC[j]
+	                + pow(max(0., dot(-Wr,R)), uSS[i].a) * uSS[i].rgb * uLC[j];
+	          }
+               }
+	    }
+
+	    c += .25 * cr;
+
+            // Do gamma color correction
+
+	    fragColor = vec4(sqrt(c), 1.);
+         }
+      }
+   }`;
+
+   let startTime = Date.now() / 1000;
+
+   this.update = () => {
+
+      // Send current time to fragment shader
+
+      let time = Date.now() / 1000 - startTime;
+      setUniform('1f', 'uTime', time);
+
+      // Send spheres data to fragment shader
+
+      let SG = [];
+
+      let SA = [];
+      let SD = [];
+      let SS = [];
+
+      let radius = .5;
+      for (let i = 0 ; i < NS ; i++) {
+         let theta = 2 * Math.PI * i / NS + time / 10;
+         SG.push(radius * Math.sin(2 * theta),
+	         radius * Math.cos(theta),
+	         -2.5 + .3 * Math.sin(theta), .25);
+         let c = [
+	   .5 + .5 * Math.sin(2 * i),
+	   .5 + .5 * Math.sin(3 * i),
+	   .5 + .5 * Math.sin(4 * i),
+	 ];
+
+	 SA.push([.2 * c[0], .2 * c[1], .2 * c[2]]);
+	 SD.push(c);
+	 SS.push(1,1,1,50);
+      }
+
+      setUniform('4fv', 'uSG', SG.flat());
+
+      setUniform('3fv', 'uSA', SA.flat());
+      setUniform('3fv', 'uSD', SD.flat());
+      setUniform('4fv', 'uSS', SS.flat());
+
+      // Send light source directions to fragment shader
+
+      let LG = [[2,1,1], [0,-1,0]];
+
+      // Normalize light source direction vectors
+
+      for (let j = 0 ; j < NL ; j++)
+         LG[j] = normalize(LG[j]);
+      setUniform('3fv', 'uLG', LG.flat());
+
+      // Send light source colors to fragment shader
+
+      let LC = [[.5,.75,1], [.5,.2,.1]];
+      setUniform('3fv', 'uLC', LC.flat());
+   }
+
+}
+
+gl_start(canvas, new Scene());
+</script>

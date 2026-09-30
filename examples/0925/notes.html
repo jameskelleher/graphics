@@ -1,0 +1,171 @@
+<font face=helvetica>
+
+In this document I describe the math to ray trace to an axis-aligned cube.
+<p>
+
+First, let's talk about ray tracing to the following half-space:
+<pre>
+   ax + by + cz + d &lt; 0
+</pre>
+That half-space can be described as a vector of length 4:
+<pre>
+   P = [a,b,c,d]
+</pre>
+
+<p>
+
+Given ray <code>V + tW</code>,
+where V is the point in space:
+<pre>
+   V<sub>x</sub>
+   V<sub>y</sub>
+   V<sub>z</sub>
+   1
+</pre>
+and W is the direction vector:
+<pre>
+   W<sub>x</sub>
+   W<sub>y</sub>
+   W<sub>z</sub>
+   0
+</pre>
+the value of <code>t</code>
+ofgwhere the ray hits the plane of <code>P</code> is:
+<pre>
+   t = - V&bull;P / W&bull;P
+</pre>
+
+Let's assume that a cube we want to render is centered at point <code>C</code> and has half-width <code>r</code>.
+
+<p>
+
+The half-space which defines being to the right of the left edge of the cube is given by:
+
+<pre>
+   x > C<sub>x</sub> - r
+</pre>
+
+Let's convert this into standard form:
+
+<pre>
+   -x < -C<sub>x</sub> + r
+&rarr;
+   -x + C<sub>x</sub> - r < 0
+&rarr;
+   P<sub>xlo</sub> = [ -1, 0, 0, C<sub>x</sub> - r ]
+</pre>
+
+
+Now let's do the same for the half-space which defines being to the left of the right edge of the cube:
+
+<pre>
+   x < C<sub>x</sub> + r
+&rarr;
+   x - C<sub>x</sub> - r < 0
+&rarr;
+   P<sub>xhi</sub> = [ 1, 0, 0, -C<sub>x</sub> - r ]
+</pre>
+
+If we apply the same logic to <code>y</code> and <code>z</code>
+that we just applied to <code>x</code>, we get a total of 6 half-spaces:
+
+<pre>
+   P<sub>xlo</sub> = [ -1,  0,  0,  C<sub>x</sub> - r ]
+   P<sub>xhi</sub> = [  1,  0,  0, -C<sub>x</sub> - r ]
+   P<sub>ylo</sub> = [  0, -1,  0,  C<sub>y</sub> - r ]
+   P<sub>yhi</sub> = [  0,  1,  0, -C<sub>y</sub> - r ]
+   P<sub>zlo</sub> = [  0,  0, -1,  C<sub>z</sub> - r ]
+   P<sub>zhi</sub> = [  0,  0,  1, -C<sub>z</sub> - r ]
+</pre>
+
+To ray trace to a cube, you need to ray trace to all 6 of these half-spaces.
+
+<p>
+
+Each half-space might either be one that the ray enters into, or one that the ray emerges out of.
+
+<p>
+
+If <code>W&bull;P<sub>xyz</sub>&lt;0</code> then this is a half-space that the ray enters into.
+
+<p>
+
+Conversely, if <code>W&bull;P<sub>xyz</sub>&gt;0</code> then this is a half-space that the ray emerges out of.
+
+<p>
+
+To find where the ray enters the cube, you need to take the maximum <code>t<sub>0</sub></code> of the
+values of <code>t</code> for the half-spaces that the ray enters into.
+
+<p>
+
+To find where the ray emerges out of the cube, you need to take the minimum <code>t<sub>1</sub></code> of the
+values of <code>t</code> for the half-spaces that the ray emerges out of.
+
+<p>
+
+If <code>t<sub>0</sub></code> &lt; <code>t<sub>1</sub></code> then the ray has hit the cube.
+Otherwise the ray has missed the cube, which you can indicate by returning <code>-1.</code>
+<p>
+
+You also need to compute the surface normal at the face where the ray enters the cube.
+This is just given by the first three numbers of the associated <code>P</code>.
+
+<p>
+
+For example, if the ray entered the cube from the cube's left side
+(via <code>P<sub>xlo</sub></code>), then the surface normal is <code>[-1,0,0]</code>.
+
+<p>
+
+When coding this in your fragment shader, and replacing function <code>raySphere</code>
+by function <code>rayCube</code>, you might find it easier to compute both the
+value of t and also the surface normal within <code>rayCube</code>.
+
+<p>
+
+So, for example, your call to <code>rayCube</code> might look like this:
+
+<pre>
+   vec4 rayCube(vec3 V, vec3 W, vec4 C)
+</pre>
+
+where <code>C.xyz</code> specifies the cube's center, and <code>C.w</code> specifies the cube's half-width.
+
+<p>
+
+Your <code>rayCube</code> function can then return both the surface normal <code>N</code> and the value of <code>t</code>,
+with <code>N</code> being the first three numbers in the returned <code>vec4</code>
+and 
+<code>t</code> being the fourth number.
+
+<p>
+
+If you use this approach, then you can return <code>vec4(0.,0.,0.,-1.)</code> whenever the ray misses the cube.
+
+<p>
+
+Also remember to use the returned surface normal in your shading calculations.
+
+
+<p>
+
+For homework I would like you to replace
+the spheres with cubes in the scene that we created in class.
+
+<p>
+
+Also, feel free to make any other ray traced scene of your choosing
+that can be built out of axis-aligned cubes.
+
+<p>
+
+If you are feeling ambitious, you can
+also try rendering other convex polygons,
+such as tetrahedrons, octagons, dodecahedrons and icosahedrons.
+
+<hr size=200 color=white>
+
+
+
+
