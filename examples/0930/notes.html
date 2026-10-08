@@ -1,0 +1,1193 @@
+<hr color=white size=75><table><tr><td width=75></td><td>
+<font face=helvetica>
+
+<center><big><b>Notes for September 30 class:<p>Matrices and various ray tracing topics</b></big></center>
+
+<p>&nbsp;<p>
+
+<p><big><b>CURSOR</b></big><p>
+
+I've added a javascript variable <code>cursor</code>,
+which you will eventually want to use to create interactive content.
+<p>
+You can also access it from your fragment shader,
+via uniform vec3 variable <big><code>"uCursor"</code></big>:
+
+<pre>
+   uniform vec3 uCursor;
+
+   x: -1.0 &le; uCursor.x &le; 1.0  // left to right
+
+   y: -1.0 &le; uCursor.y &le; 1.0  // bottom to top
+
+   z: uCursor.z == 0.0 if mouse is up,
+                   1.0 if mouse is down
+</pre>
+
+As an example of using the cursor, I added a little black dot to the ray traced scene
+wherever the cursor overlaps a ray traced object.
+
+
+<p><big><b>USING MATRICES TO TRANSFORM POINTS</b></big><p>
+
+Our major use of 4x4 matrices
+will be to perform <i>linear transformations</i>.
+These are any geometric transformations that
+always keep straight lines straight.
+<p>
+
+Internally, the 16 numerical values in a matrix
+can be stored in either <i>column major order</i>,
+as shown below, or <i>row major order</i>.
+For this course, you will be storing matrices
+in column major order, because that is
+consistent with how matrices are stored
+in shader programs on the GPU.
+
+<p>
+The basic operation is multiplying
+a column vector on the left by a 4x4 matrix,
+thereby transforming that column vector.
+The operation itself is essentially four dot products,
+one for each row of the matrix:
+
+<pre>
+<table>
+<tr>
+<td width=20>&nbsp;
+<th>1x4 <th>&nbsp; <th>&nbsp; <th>&nbsp; <th align=left>4x4 <th>&nbsp; <th>&nbsp; <th>1x4
+
+<tr>
+<td width=20>&nbsp;
+
+<td align=center>
+<font color=red   >x'</font><br>
+<font color=green >y'</font><br>
+<font color=blue  >z'</font><br>
+<font color=violet>w'</font>
+
+<td valign=center><big><big>&nbsp; &xlarr; &nbsp;</big></big>
+
+<td align=center>
+<font color=red   >M<sub>0</sub></font><br>
+<font color=green >M<sub>1</sub></font><br>
+<font color=blue  >M<sub>2</sub></font><br>
+<font color=violet>M<sub>3</sub></font>
+
+<td align=center>
+<font color=red   >M<sub>4</sub></font><br>
+<font color=green >M<sub>5</sub></font><br>
+<font color=blue  >M<sub>6</sub></font><br>
+<font color=violet>M<sub>7</sub></font>
+
+<td align=center>
+<font color=red   >M<sub>8</sub></font><br>
+<font color=green >M<sub>9</sub></font><br>
+<font color=blue  >M<sub>10</sub></font><br>
+<font color=violet>M<sub>11</sub></font>
+
+<td align=center>
+<font color=red   >M<sub>12</sub></font><br>
+<font color=green >M<sub>13</sub></font><br>
+<font color=blue  >M<sub>14</sub></font><br>
+<font color=violet>M<sub>15</sub></font>
+
+<td valign=center><big><big>&nbsp; &times; &nbsp;</big></big>
+
+<td align=center>x<br>y<br>z<br>w
+</tr>
+</table>
+</pre>
+
+<p><big><b>MATRIX PRIMITIVES</b></big><p>
+
+There are a few primitive matrix generating functions.
+The matrices returned by these functions
+can be used to generate all other matrices.
+Each of these matrices represents a simple
+geometric intuition:
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;
+<td>
+    identity()
+<br>translate(x,y,z)
+<br>rotateX(&theta;)
+<br>rotateY(&theta;)
+<br>rotateZ(&theta;)
+<br>scale(x,y,z)
+<br>perspective(x,y,z,w)
+<td width=20>&nbsp;
+<td>
+    has no effect on point
+<br>moves point by a fixed amount
+<br>rotates point about X axis
+<br>rotates point about Y axis
+<br>rotates point about Z axis
+<br>scales point along X,Y,Z axes
+<br>create perspective effects
+</tr></table>
+</pre>
+
+The above matrices are
+internally structured as follows.
+<p>
+In the chart below,
+"c" represents cos(&theta;) and
+"s" represents sin(&theta;),
+where &theta; is angle of rotation.
+
+<p>
+
+<pre>
+<table>
+<tr><th width=20>
+<th width=120>identity()
+<th width=120>translate(x,y,z)
+<th width=120>rotateX(&theta;)
+<th width=120>rotateY(&theta;)
+<th width=120>rotateZ(&theta;)
+<th width=120>scale(x,y,z)
+<th width=120>perspective(x,y,z,w)
+</tr>
+<tr><td>&nbsp;</tr>
+<tr><th width=20>
+<td align=center> 1 0 0 0<br>0 1 0 0<br>0 0 1 0<br>0 0 0 1
+<td align=center> 1 0 0 x<br>0 1 0 y<br>0 0 1 z<br>0 0 0 1
+<td align=center> 1 0 &nbsp;0 0<br>0 c -s 0<br>0 s &nbsp;c 0<br>0 0 &nbsp;0 1
+<td align=center> &nbsp;c 0 s 0<br>&nbsp;0 1 0 0<br>-s 0 c 0<br>&nbsp;0 0 0 1
+<td align=center> c -s 0 0<br>s &nbsp;c 0 0<br>0 &nbsp;0 1 0<br>0 &nbsp;0 0 1
+<td align=center> x 0 0 0<br>0 y 0 0<br>0 0 z 0<br>0 0 0 1
+<td align=center> 1 0 0 0<br>0 1 0 0<br>0 0 1 0<br>x y z w
+</tr>
+</table>
+</pre>
+
+Because you are storing matrices in column major order,
+the array of 16 numerical values of, for example, the output of translate(x,y,z)
+will be in the following order:
+
+<pre>
+   [ 1 0 0 0  0 1 0 0  0 0 1 0  x y z 1 ]
+</pre>
+
+
+<p><big><b>MATRIX OPERATIONS</b></big><p>
+
+There are some basic operations for matrices:
+<br>&nbsp;
+
+<pre>
+<table>
+
+<tr>
+<td width=20>&nbsp;
+<td> multiply(M,M)
+<td width=20>&nbsp;
+<td> M &nbsp;<sub>&nbsp;</sub>&xlarr; M x M
+<td width=20>&nbsp;
+<td> Multiply two matrices together
+
+<tr>
+<td width=20>&nbsp;
+<td> multiply(M,V)
+<td width=20>&nbsp;
+<td> V &nbsp;<sub>&nbsp;</sub>&xlarr; M x V
+<td width=20>&nbsp;
+<td> Use a matrix to transform a point
+
+<tr>
+<td width=20>&nbsp;
+<td> transpose(M)
+<td width=20>&nbsp;
+<td> M<sup>T</sup> <sub>&nbsp;</sub>&xlarr; M
+<td width=20>&nbsp;
+<td> Swap the rows and columns of a matrix
+
+<tr>
+<td width=20>&nbsp;
+<td> inverse(M)
+<td width=20>&nbsp;
+<td> M<sup>-1</sup> &xlarr; M
+<td width=20>&nbsp;
+<td> Find the matrix M<sup>-1</sup> such that M<sup>-1</sup>M is Identity
+</tr></table>
+</pre>
+
+Matrix multiplication essentially consists of sixteen
+dot products.
+To produce any given row and column of A&times;B,
+we take the dot product of that row of A and
+that column of B:
+
+<br>&nbsp;
+
+<pre>
+<table><tr>
+<td>
+<th>A&times;B
+<td>
+<td>
+<td>
+<th>A
+<td>
+<td>
+<td>
+<th>B
+<tr>
+<td width=20>&nbsp;
+<td><font color=#a0a0a0># # # #<br># # <font color=black>#</font> #<br># # # #<br># # # #
+<td width=20>&nbsp;
+<th> &xlarr;
+<td width=20>&nbsp;
+<td><font color=#a0a0a0># # # #<br><font color=black># # # #</font><br># # # #<br># # # #
+<td width=20>&nbsp;
+<th> &times;
+<td width=20>&nbsp;
+<td><font color=#a0a0a0>
+# # <font color=black>#</font> #<br>
+# # <font color=black>#</font> #<br>
+# # <font color=black>#</font> #<br>
+# # <font color=black>#</font> #
+</tr></table>
+</pre>
+
+<p>
+In the course notes I will provide you with an
+implementation of <big><code>inverse()</code></big>.
+
+<p><big><b>BUILDING MATRIX HIERARCHIES</b></big><p>
+
+Not this week, but soon, you will be using 4x4 matrices to build
+hierarchical movement models.
+<p>
+Any hierarchical structure with moving parts,
+such as an electric motor or a human body,
+is essentially a tree structure.
+Traversing such a structure
+therefore requires some sort of internal
+data stack.
+<p>
+In our case, each element of that stack is a 4x4 matrix:
+
+<pre>
+   save()        stack[top+1] = copy(stack[top]);
+	         ++top;
+
+   restore()     --top;
+</pre>
+
+<p><big><b>ACCESSING A MATRIX ON THE GPU</b></big><p>
+
+You can directly specify the 16 values of a matrix variable in a shader program as follows:
+
+<pre>
+   mat4 M = mat4(1.,0.,0.,0., 0.,1.,0.,0., 0.,0.,1.,0., 2.,3.,4.,1.);
+</pre>
+
+When you do the above, you get the following column major matrix:
+
+<pre>
+          1 0 0 2
+          0 1 0 3
+          0 0 1 4
+          0 0 0 1
+</pre>
+
+You can then access a single column of this matrix as follows:
+
+<pre>
+   M[3] // == vec4(2.,3.,4.,1.)
+</pre>
+
+You can access a single element of this matrix in two different ways:
+
+<pre>
+   M[3].y  // == 3.
+   M[3][1] // == 3.  (this line and the previous line are equivalent)
+</pre>
+
+Accessing a row of this matrix is a little more awkward:
+
+<pre>
+   vec4(M[0].y,M[1].y,M[2].y,M[3].y)  // == vec4(0.,1.,0.,3.)
+
+</pre>
+
+
+<p><big><b>MIRROR REFLECTION</b></big><p>
+
+<table><tr>
+<td valign=top width=70%>
+After doing Phong shading, we might add mirror reflection.
+To do this,
+we need to cast a secondary ray from the surface of our object
+and see whether that secondary ray hits any other objects.
+If the secondary ray manages to hit any other objects,
+then we perform Phong shading at the nearest
+such object along the secondary ray,
+and mix that color in.
+<p>
+
+The basic algorithm is as follows:
+<ol>
+<li>Form a secondary "mirror reflection" ray
+<li>Send that ray out from the surface and see what it hits
+<li>If it hits any object, Phong shade the nearest such object
+<li>Add in the result
+</ol>
+</td>
+<td width=50>&nbsp;</td>
+<td width=20%>
+<img src=../images/reflection.png>
+</td>
+</tr></table>
+
+To form the secondary ray, we use the incoming ray direction W
+and the surface normal N to compute a mirror reflection ray W',
+using essentially the same technique you used last week to calculate
+a mirror reflection for our light vector L:
+
+<blockquote>
+   W' = W - 2 (N &#9679; W) N
+</blockquote>
+
+It's not exactly the same, because W points toward the surface,
+unlike L which pointed away from the surface, so the above equation
+is actually the negative of the one we used to calculate R.
+<p>
+
+We can now shoot a ray into the scene and see whether it hits
+any objects. If so, we will be shading the nearest such object.
+<p>
+
+<p><big><b>REFRACTION</b></big><p>
+
+Refraction is a little trickier than reflection because you need
+to use Snell's law to trace the ray through your shape, and then
+trace a ray from there out into the scene to see whether
+any other objects are visible due to refraction through your transparent shape.
+<p>
+
+Starting with a ray in direction W arriving at surface point P with normal N,
+we first need to compute the new ray direction W' into the
+shape due to refraction.
+
+<p>
+
+Then we need to form a new ray from slightly outside the surface
+through the transparent shape, to find the exit point at the rear of the shape.
+To do this, we will need to use the second root of the ray shape computation
+(up until now, we have used only the first root).
+
+<p>
+
+Then we need to use Snell's law a second time change the ray direction
+once again, because the
+ray will again be refracted as it emerges from the rear of the transparent
+shape back into the air.
+
+<p>
+
+Finally, we need to see what object (if any) the refracted ray
+hits, do a Phong computation at that other shape, and add in
+the result, tinted by the color of our refractive material.
+Note that this last step is very similar to what we do for reflections.
+
+<p>
+
+<i><b>Computing a refracted ray:</b></i><p>
+
+In order to refract a ray using Snell's law, we need to bend
+from W to W'.
+Suppose the surface normal is N.
+<p>
+If &theta;<sub>1</sub> is the angle between
+the incoming ray W and -N,
+and &theta;<sub>2</sub> is the angle
+between the emergent ray W' and -N,
+then Snell's law tells us that:
+
+<blockquote>
+sin(&theta;<sub>2</sub>) = sin(&theta;<sub>1</sub>) / index_of_refraction
+</blockquote>
+
+<p>
+
+To compute W', we first
+decompose W into two orthogonal vectors W<sub>c</sub>
+which is parallel to N, and
+W<sub>s</sub> which is orthogonal to N:
+
+<blockquote>
+   W<sub>c</sub> = (W &#9679; N) N
+   <p>
+   W<sub>s</sub> = W - W<sub>c</sub>
+</blockquote>
+
+Then we can use W<sub>s</sub> and Snell's law to compute W'<sub>s</sub>, the component of the
+emergent ray which is orthogonal to surface normal N:
+
+<blockquote>
+   W'<sub>s</sub> = W<sub>s</sub> / index_of_refraction
+</blockquote>
+
+From there it's easy to compute the component of the emergent
+ray W' which is parallel to N, and that gives us the answer:
+
+<blockquote>
+   W'<sub>c</sub> = -N * sqrt(1 - W'<sub>s</sub> &#9679; W'<sub>s</sub>)
+   <p>
+   W' = W'<sub>c</sub> + W'<sub>s</sub>
+</blockquote>
+
+
+<p>
+<i><b>The algorithm then looks roughly like this:</b></i>
+
+<pre>
+    if (length(uTransparency[i]) > 0.)        // If transparent color is not black
+
+       // Compute ray that refracts into the shape
+
+       W' = refractRay(W, N, uIndexOfRefraction[i])
+       t' = rayShape(P - W'/1000, W', uShapes[i]).y    <font color=red>// Note: We are using the second root,</font>
+                                                       <font color=red>//      where the ray exits the shape.</font>
+       // Compute second refracted ray that emerges back out of the shape
+
+       P' = P + t' * W'
+       N' = computeSurfaceNormal(P', uShapes[i])
+       <font color=blue>W"</font> = refractRay(W', N', 1 / uIndexOfRefraction[j])
+
+       // If emergent ray hits any shapes, do Phong shading on nearest one and add to color
+
+       Shape S
+       Material M
+       tMin = 1000
+       vec3 <font color=blue>P"</font>, <font color=blue>N"</font>
+       for (int j = 0 ; j < NS ; j++)
+          t = rayShape(P', <font color=blue>W"</font>, uShapes[j]).x
+          if t > .001 && t < tMin
+             S = uShapes[j]
+             <font color=blue>P"</font> = P' + t * W"                         // find point on surface of other shape
+             <font color=blue>N"</font> = computeSurfaceNormal(<font color=blue>P"</font>, S)         // find surface normal at other shape
+             tMin = t;
+       if tMin < 1000
+          rgb = phongShading(<font color=blue>P"</font>, <font color=blue>N"</font>, S, M)            // do phong shading at other shape
+          color += rgb * uTransparency[i]    // add in tinted result
+</pre>
+
+<p>
+<center><img src=../images/refraction.png width=80%></center>
+<p>
+
+<p><big><b>RAY TRACING TO A HALF SPACE</b></big><p>
+
+Before we can ray trace to a polyhedron (like a cube or pyramid or octahedron),
+first we need to know how to ray trace to a single half space.
+
+Then we will be able to ray trace to polyhedral shapes, because such shapes are
+intersections of half spaces.
+
+<p>
+
+A halfspace is bounded by a plane P = (a,b,c,d).
+In order to properly think about the interaction between points
+and planes, we need to be a little more precise in our math.
+<p>
+
+<i><b>A short detour into homogeneous coordinates:</b></i>
+
+<p>
+
+A point in space V is properly written as a column vector:
+
+<blockquote>
+<table>
+<tr>
+<td valign=center>V = &nbsp;
+<td align=center>x<br>y<br>z<br>w
+</tr>
+</table>
+</blockquote>
+
+The w above is the <i>homogeneous coordinate</i>.
+We generally normalize a point by dividing through by its homogeneous coordinate.
+The homogeneous coordinate then equals 1.
+<p>
+
+If w is zero, then we are dealing with a point at infinity,
+also known as a direction vector.
+<p>
+
+Using this more precise way of writing things, the
+parametric ray tracing equation V + tW,
+which contains point V and direction vector W,
+is more properly written as:
+
+<blockquote>
+<table cellspacing=0>
+<tr>
+<td align=center>V<sub>x</sub><br>
+    V<sub>y</sub><br>
+    V<sub>z</sub><br>
+    1
+<td valign=center>&nbsp; &nbsp; <big><big> + &nbsp; t &nbsp;</big></big>
+<td align=center>W<sub>x</sub><br>
+    W<sub>y</sub><br>
+    W<sub>z</sub><br>
+    0
+</tr>
+</table>
+</blockquote>
+
+Notice that when this is written as a single column vector,
+the homogeneous coordinate remains 1, no matter what the value of t:
+
+<blockquote>
+<table cellspacing=0>
+<tr>
+<td align=center>V<sub>x</sub> + t W<sub>x</sub><br>
+    V<sub>y</sub> + t W<sub>y</sub><br>
+    V<sub>z</sub> + t W<sub>z</sub><br>
+    1
+</tr>
+</table>
+</blockquote>
+
+<p>
+
+<i><b>Interaction between a point and a halfspace:</b></i>
+
+<p>
+
+Since any plane P is a row vector, and any point V is a column vector,
+multiplying them is basically performing a dot product, with
+the result being a single numerical value:
+
+<blockquote>
+<table cellspacing=0>
+<tr>
+<td>
+P &#9679; V
+<big><big>&nbsp; = &nbsp;</big></big>
+P<sub>a</sub> V<sub>x</sub> +
+P<sub>b</sub> V<sub>y</sub> +
+P<sub>c</sub> V<sub>z</sub> +
+P<sub>d</sub> V<sub>w</sub>
+<big><big>&nbsp; = &nbsp;</big></big>
+( P<sub>a</sub>
+P<sub>b</sub>
+P<sub>c</sub>
+P<sub>d</sub> )
+&nbsp;
+<td align=center>
+V<sub>x</sub><br>
+V<sub>y</sub><br>
+V<sub>z</sub><br>
+V<sub>w</sub>
+</tr>
+</table>
+</blockquote>
+
+We say that a point is on a plane when that numerical value is zero.
+<p>
+
+Now we can precisely define a halfspace P
+as the set of all points V in space such that: P &#9679; V &le; 0
+
+<p>
+
+A point can be inside, outside or on the surface of a halfspace:
+
+<ul>
+
+<li>Any point for which P &#9679; V &lt; 0
+is strictly inside the halfspace.
+
+
+<p>
+
+<li>Any point for which P &#9679; V &gt; 0
+is outside the halfspace.
+
+<p>
+
+<li>Any point on the bounding plane P &#9679; V = 0
+is on the surface of the halfspace.
+</ul>
+
+<p>
+
+<i><b>Ray tracing to a halfspace:</b></i>
+
+<p>
+
+Given a ray V + t W and a halfspace defined as all points V such that P &#9679; V &le; 0,
+we can find the intersection of the ray with the bounding plane of the halfspace
+by finding the value of t for which:
+
+<blockquote>
+   P &#9679; (V + t W) = 0
+</blockquote>
+
+We can rewrite this as (P &#9679; V) + t (P &#9679; W) = 0.
+
+<p>
+Remember that V is a point and W is a direction vector, so
+the values we will use for V and W in the two above dot products are, respectively:
+<p>
+
+<blockquote>
+<table cellspacing=0><tr>
+<td align=center>V<sub>x</sub><br>
+    V<sub>y</sub><br>
+    V<sub>z</sub><br>
+    1
+<td> &nbsp; &nbsp; and &nbsp; &nbsp;
+<td align=center>W<sub>x</sub><br>
+    W<sub>y</sub><br>
+    W<sub>z</sub><br>
+    0
+</tr></table>
+</blockquote>
+
+<p>
+
+Solving for t, we get:
+
+<blockquote>
+   <table><tr>
+   <td>t &nbsp; = &nbsp; </td>
+   <td align=right><big><big>-</big></big>&nbsp;(P &#9679; V) <hr size=2 color=black>
+       <big><big> </big></big>&nbsp;&nbsp;(P &#9679; W)
+   </tr></table>
+</blockquote>
+
+There are four cases to consider:
+
+<ul>
+
+<li>
+If the ray origin is outside the halfspace
+(that is, P &#9679; V &gt; 0), then:
+
+<p>
+<ul>
+<li><b>Case 1</b>: If t < 0, then the ray has missed the halfspace.
+<p>
+<li><b>Case 2</b>: If t > 0, then the ray is entering the halfspace at point V + tW.
+</ul>
+<p>
+
+<li>If the ray origin is inside the halfspace
+(that is, P &#9679; V &lt; 0), then:
+
+<p>
+<ul>
+<li><b>Case 3</b>: If t > 0, then the ray is exiting the halfspace at point V + tW.
+<p>
+<li><b>Case 4</b>: If t < 0, then the entire ray is contained within the halfspace.
+</ul>
+</ul>
+
+<br>
+
+<img src=../images/four_cases.png width=80%>
+
+<br>&nbsp;
+
+<p><big><b>RAY TRACING TO A POLYHEDRON</b></big><p>
+
+A polyhedron can be thought of as an intersection of halfspaces.
+For example, a cube is an intersection of six halfspaces,
+and an octahedron is an intersection of eight halfspaces.
+<p>
+
+Ray tracing to a single halfspace results in a range of values
+for t. Ray tracing to a polyhedron consists of taking the
+intersection of all of those ranges.
+<p>
+
+In practice, this means starting with a very large
+range for t, such as [t<sub>min</sub>, t<sub>max</sub>] = [-1000, 1000]).
+Then we loop through each of the defining halfspaces [a,b,c,d]<sub>i</sub>
+for that polyhedron, and 
+possiblity whittling down this range at each step.
+<p>
+
+If the range is non-empty after we have finished this process,
+then the ray has intersected the polyhedron.
+
+<p>
+
+For any given face of the polyhedron, we consider each
+of the four cases of a ray intersecting a halfspace.
+<ul>
+<li>
+If we encounter Case 1, then we know the ray has missed the polyhedron.
+
+<p>
+<li>
+If we encounter Case 2:
+<br>
+&nbsp;&nbsp; if t > t<sub>min</sub><br>
+&nbsp;&nbsp;&nbsp;&nbsp; frontSurfaceNormal = [a,b,c]<sub>i</sub>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; t<sub>min</sub> = t
+
+<p>
+<li>
+If we encounter Case 3:
+<br>
+&nbsp;&nbsp; if t < t<sub>max</sub><br>
+&nbsp;&nbsp;&nbsp;&nbsp; rearSurfaceNormal = [a,b,c]<sub>i</sub>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; t<sub>max</sub> = t
+
+<p>
+<li>
+If we encounter Case 4, then we do nothing.
+</ul>
+
+At the end of this process, if we never encountered Case 1,
+and t<sub>min</sub> &le; t<sub>max</sub>, then the ray intersects the polyhedron in the range t<sub>min</sub> &le; t &le; t<sub>max</sub>.
+Otherwise, the ray misses the polyhedron.
+
+<p>
+
+<i><b>Some useful polyhedra:</b></i>
+
+<p>
+
+Consider a halfspace as defined by ax + by + cd + d &le; 0.
+
+Then the six planes that define a cube centered at the origin of size 2r are:
+
+<blockquote><table><tr>
+<td width=30%>
+<pre>
+    a  b  c  d
+   -----------
+   -1  0  0 -r
+    1  0  0 -r
+    0 -1  0 -r
+    0  1  0 -r
+    0  0 -1 -r
+    0  0  1 -r
+</pre>
+</td>
+<td width=100>&nbsp;</td>
+<td width=30%><img src=../images/cube.png width=100></td>
+</tr></table></blockquote>
+
+The eight planes that define an octahedron centered at the origin of size 2r are:
+
+<blockquote><table><tr>
+<td width=30%>
+<pre>
+    a   b   c   d
+   --------------
+   -r3 -r3 -r3 -r
+    r3 -r3 -r3 -r
+   -r3  r3 -r3 -r
+    r3  r3 -r3 -r
+   -r3 -r3  r3 -r
+    r3 -r3  r3 -r
+   -r3  r3  r3 -r
+    r3  r3  r3 -r
+</pre>
+</td>
+<td width=100>&nbsp;</td>
+<td width=30%><img src=../images/octahedron.png width=100></td>
+</tr></table></blockquote>
+
+where r3 is 1 / sqrt(3), so that the surface normal will be of unit length.
+
+<p>
+
+To ray trace to a polyhedron with an arbitrary center point C,
+we can first modify our ray by replacing V with V-C,
+then ray trace using our modified ray to the polyhedron defined
+at the origin.
+<p>
+
+<p><big><b>ABSTRACTING OUT THE SHAPE</b></big><p>
+
+You might want to consider creating a single 
+wrapper function called rayShape() that works for spheres
+and different kinds of polyhedra,
+internally splitting the logic of tracing a ray into 
+different cases, based on the type of shape.
+In all cases, your rayShape function
+would return a vec2 to indicate the values
+of t where the ray enters and exits the shape, respectively.
+<p>
+
+This will allow you to use your logic for such
+actions as shadows, reflection and refraction in
+a scene that contains a mix of different kinds of shapes.
+
+<p>
+
+Similarly, you might want to consider creating
+a single wrapper function called computeSurfaceNormal(),
+which takes a point and a shape as arguments.
+
+<p>
+
+<i><b>A tip on implementation:</b></i>
+<p>
+In the case of ray tracing to a polyhedron,
+you can actually do the logic of computing the
+entering and exiting
+surface normals
+when you ray trace to the polyhedron,
+save these results to variables,
+and then use those stored values when
+computeSurfaceNormal() is called.
+<p>
+This works because computeSurfaceNormal() is always called right
+after the corresponding call to rayShape().
+
+
+<p><big><b>RAY TRACING: TRANSFORMING A PLANE SURFACE</b></big><p>
+
+To use a transformation matrix for ray tracing, you will
+really want to use its corresponding inverse matrix.
+<p>
+
+To use a 4x4 matrix to transform a ray traced polyhedron,
+in your fragment shader
+you can simply transform each of the planes that define
+one of its component halfspaces.
+For example, to ray trace to a transformed cube,
+you would transform each of its 6 defining planes
+as part of your fragment shader computation.
+<p>
+Because the goal is to preserve the relationship
+between any halfspace S and any point V:
+
+<pre>
+   S&bull;V &le; 0
+</pre>
+
+we need to transform <big><code>S &rarr; S'</code></big> so that
+
+<pre>
+   S'&bull;(M&bull;V) &le; 0
+</pre>
+produces the same result.
+<p>
+It is easy to see that this will be the case when:
+
+<pre>
+   S' = S&bull;M<sup>-1</sup>
+</pre>
+
+because:
+
+<pre>
+   (S&bull;M<sup>-1</sup>)&bull;(M&bull;V) == S&bull;(M<sup>-1</sup>&bull;M)&bull;V == S&bull;V
+</pre>
+
+So if you have a function that computes
+ray/halfspace intersection
+in your fragment shader program, you
+can just insert the following assignment right
+at the beginning of the function:
+
+<pre>
+   S = S * uShapes[i].imatrix;
+</pre>
+
+
+<p><big><b>RAY TRACING: TRANSFORMING A QUADRATIC SURFACE</b></big><p>
+
+In the following section, we show how to do the same
+kind of transformation when ray tracing in your fragment shader to second order surfaces,
+such as spheres.
+<p>
+
+In the data you pass down to your fragment shader, you can represent
+any general quadratic surface (eg: sphere, cylindrical tube, cone, parabaloid, etc) as a 4x4 matrix,
+where you actually use only 10 of the 16 available matrix slots:
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;
+<td>S&nbsp; = &nbsp;
+<td>a 0 0 0<br>b e 0 0<br>c f h 0<br>d g i j
+</tr></table>
+</pre>
+
+The above matrix could be created in a GLSL shader
+by, for example, the following assignment:
+
+<pre>
+   mat4 S = mat4(a,b,c,d, 0.,e,f,g, 0.,0.,h,i, 0.,0.,0.,j);
+</pre>
+
+A key observation, which I learned from the great
+computer graphics pioneer Jim Blinn, is that
+the above matrix can be used to represent a general
+quadratic equation in three variables by expanding the following inequality:
+
+<pre>
+   V<sup>T</sup> S V &le; 0
+</pre>
+
+Where:
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;</td>
+<td>V &nbsp; = &nbsp;</td>
+<td>x<br>y<br>z<br>1</td>
+</tr></table>
+</pre>
+
+If you actually multiply this out, you get the general
+quadratic polynomial in three variables:
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;
+<td>x y z 1
+<td width=20>&nbsp;
+<td>a 0 0 0<br>b e 0 0<br>c f h 0<br>d g i j
+<td width=20>&nbsp;
+<td>x<br>y<br>z<br>1
+<td>&nbsp; &xrarr; &nbsp;
+<td>ax<sup>2</sup> + bxy + cxz + dx + ey<sup>2</sup> + fyz + gy + hz<sup>2</sup> + iz + j
+</tr></table>
+</pre>
+
+Suppose you want to transform
+<big><code>V to V'= M&bull;V</code></big>.
+<p>
+
+This means you now need to find a different
+<big><code>S'</code></big>
+such that:
+
+<pre>
+   (MV)<sup>T</sup> <font color=blue>S'</font> MV == V<sup>T</sup> <font color=blue>S</font> V
+</pre>
+
+Note also, by the way, that when you take the transpose, you need
+to reverse the order of the matrix/vector multiplication:
+
+<pre>
+   (M V)<sup>T</sup> == V<sup>T</sup> M<sup>T</sup>
+</pre>
+
+Following the same approach you used for half spaces, you will want to
+modify S as follows in your fragment shader:
+
+<pre>
+   V<sup>T</sup> M<sup>T</sup> <font color=blue>M<sup>-1<sup><big>T</big></sup></sup> S M<sup>-1</sup></font> M V == V<sup>T</sup> <font color=blue>S</font> V
+</pre>
+
+You can implement this in your shader via the following code:
+
+<pre>
+   S &lArr; transpose(M<sup>-1</sup>) * S * M<sup>-1</sup>;
+</pre>
+
+After doing that, you need to rearrange the values in S to ensure all of the
+non-zero values end up in just those 10 slots:
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;
+<td><font size=6>S</font>
+<td> <big>&nbsp; &lArr; &nbsp; &nbsp;</big>
+<td align=center><font size=6>a&nbsp;<br>b&nbsp;<br>c&nbsp;<br>d&nbsp;
+<td align=center><font size=6>0&nbsp;<br>e&nbsp;<br>f&nbsp;<br>g&nbsp;
+<td align=center><font size=6>0&nbsp;<br>0&nbsp;<br>h&nbsp;<br>i&nbsp;
+<td align=center><font size=6>0&nbsp;<br>0&nbsp;<br>0&nbsp;<br>j&nbsp;
+<td> <big>&nbsp; &lArr; &nbsp; &nbsp;</big>
+<td><table border=1 cellspacing=0><tr>
+<td width=30><sub><sub>&nbsp;</sub></sub><br>
+             &nbsp;S<sub>0,0</sub><hr color=black>
+             &nbsp;S<sub>0,1</sub>+S<sub>1,0</sub>&nbsp;<hr color=black>
+	     &nbsp;S<sub>0,2</sub>+S<sub>2,0</sub><hr color=black>
+	     &nbsp;S<sub>0,3</sub>
+	     <br><sub><sub>&nbsp;</sub></sub>
+<td width=30><sub><sub>&nbsp;</sub></sub><br>
+             &nbsp;0<sub>&nbsp;</sub><hr color=black>
+             &nbsp;S<sub>1,1</sub><hr color=black>
+	     &nbsp;S<sub>1,2</sub>+S<sub>2,1</sub>&nbsp;<hr color=black>
+	     &nbsp;S<sub>1,3</sub>+S<sub>3,1</sub>
+	     <br><sub><sub>&nbsp;</sub></sub>
+<td width=30><sub><sub>&nbsp;</sub></sub><br>
+             &nbsp;0<sub>&nbsp;</sub><hr color=black>
+             &nbsp;0<sub>&nbsp;</sub><hr color=black>
+	     &nbsp;S<sub>2,2</sub><hr color=black>
+	     &nbsp;S<sub>2,3</sub>+S<sub>3,2</sub>&nbsp;
+	     <br><sub><sub>&nbsp;</sub></sub>
+<td width=30><sub><sub>&nbsp;</sub></sub><br>
+             &nbsp;0<sub>&nbsp;</sub><hr color=black>
+             &nbsp;0<sub>&nbsp;</sub><hr color=black>
+	     &nbsp;0<sub>&nbsp;</sub><hr color=black>
+	     &nbsp;S<sub>3,3</sub>&nbsp;
+	     <br><sub><sub>&nbsp;</sub></sub>
+</tr></table></td>
+</tr></table>
+</pre>
+
+You can complete the code below to implement this in your fragment shader:
+
+<pre>
+   S = mat4( S[0].x, S[0].y+S[1].x, S[0].z+S[2].x, S[0].w+S[3].x,
+             0.,     S[1].y       , S[1].z+S[2].y, S[1].w+S[3].y,
+	     ...
+   );
+</pre>
+
+You are really trying to intersect S with a ray V+tW,
+and your goal is to find the value of t where the resulting
+point is on the surface of S.
+<p>
+
+Expanding out the expression (V+tW)<sup>T</sup> <font color=blue>S</font> (V+tW):
+
+<pre>
+<table><tr>
+<td width=20>&nbsp;
+<td>[v<sub>x</sub> + t w<sub>x</sub> , v<sub>y</sub> + t w<sub>y</sub> , v<sub>z</sub> + t w<sub>z</sub>, 1]
+<td width=30>&nbsp;
+<td><font color=blue>a 0 0 0<br>b e 0 0<br>c f h 0<br>d g i j</font>
+<td width=30>&nbsp;
+<td align=center>v<sub>x</sub> + t w<sub>x</sub><br>v<sub>y</sub> + t w<sub>y</sub><br>v<sub>z</sub> + t w<sub>z</sub><br>1
+</tr></table>
+</pre>
+
+When you multiply out the above, you get the below fairly large expression
+in variable t.
+<p>
+(Note that the six numbers
+<big><code>
+v<sub>x</sub>,
+v<sub>y</sub>,
+v<sub>z</sub>,
+w<sub>x</sub>,
+w<sub>y</sub>,
+w<sub>z</sub></code></big>
+are all constants):
+
+<pre>
+   a (v<sub>x</sub> + t w<sub>x</sub>) (v<sub>x</sub> + t w<sub>x</sub>) +
+   b (v<sub>x</sub> + t w<sub>x</sub>) (v<sub>y</sub> + t w<sub>y</sub>) +
+   c (v<sub>x</sub> + t w<sub>x</sub>) (v<sub>z</sub> + t w<sub>z</sub>) +
+   d (v<sub>x</sub> + t w<sub>x</sub>) +
+
+   e (v<sub>y</sub> + t w<sub>y</sub>) (v<sub>y</sub> + t w<sub>y</sub>) +
+   f (v<sub>y</sub> + t w<sub>y</sub>) (v<sub>z</sub> + t w<sub>z</sub>) +
+   g (v<sub>y</sub> + t w<sub>y</sub>) +
+
+   h (v<sub>z</sub> + t w<sub>z</sub>) (v<sub>z</sub> + t w<sub>z</sub>) +
+   i (v<sub>z</sub> + t w<sub>z</sub>) +
+
+   j
+</pre>
+
+Your goal is to end up with a quadratic equation in t that you can then solve:
+
+<pre>
+   A t<sup>2</sup> + B t + C &le; 0
+</pre>
+
+You can multiply out the large expression above and then regroup all of the terms
+to get the three coefficients
+of the quadratic equation:
+
+<pre>
+   A = a w<sub>x</sub> w<sub>x</sub> + b w<sub>x</sub> w<sub>y</sub> + c w<sub>x</sub> w<sub>z</sub> +
+<sub>  </sub>               e w<sub>y</sub> w<sub>y</sub> + f w<sub>y</sub> w<sub>z</sub> +
+<sub>   </sub>                        h w<sub>z</sub> w<sub>z</sub> 
+
+   B = a (v<sub>x</sub> w<sub>x</sub> + v<sub>x</sub> w<sub>x</sub>) + b (v<sub>x</sub> w<sub>y</sub> + v<sub>y</sub> w<sub>x</sub>) + c (v<sub>x</sub> w<sub>z</sub> + v<sub>z</sub> w<sub>x</sub>) + d w<sub>x</sub> +
+<sub>    </sub>                       e (v<sub>y</sub> w<sub>y</sub> + v<sub>y</sub> w<sub>y</sub>) + f (v<sub>y</sub> w<sub>z</sub> + v<sub>z</sub> w<sub>y</sub>) + g w<sub>y</sub> +
+<sub>  </sub>                                            h (v<sub>z</sub> w<sub>z</sub> + v<sub>z</sub> w<sub>z</sub>) + i w<sub>z</sub> 
+   
+   C = a v<sub>x</sub> v<sub>x</sub> + b v<sub>x</sub> v<sub>y</sub> + c v<sub>x</sub> v<sub>z</sub> + d v<sub>x</sub> +
+<sub>  </sub>               e v<sub>y</sub> v<sub>y</sub> + f v<sub>y</sub> v<sub>z</sub> + g v<sub>y</sub> +
+<sub>    </sub>                       h v<sub>z</sub> v<sub>z</sub> + i v<sub>z</sub> +
+                                    j      
+</pre>
+
+Now that you have A, B and C, you can just solve quadratic equation for t,
+to find where the ray intersects the surface.
+
+<p>
+
+To sum up the above steps -- all of which should be done in your fragment shader:
+
+<ol>
+<li> Transform S &rarr; (M<sup>-1</sup>)<sup>T</sup> S (M<sup>-1</sup>)
+<li> Gather the 16 values of the resulting matrix into 10 coefficients
+<li> Rearrange terms to find A,B and C, where At<sup>2</sup> + Bt + C &le; 0
+<li> Solve for t using the quadratic equation
+</ol>
+
+
+<p><big><b>FINDING THE SURFACE NORMAL</b></big><p>
+
+You can now easily find the surface normal, because
+it's just the gradient of the polynomial.
+<p>
+That means you can just take the 
+partial derivatives in x,y,z and normalize the result:
+
+<pre>
+   (x,y,z) = V + t W
+
+   normal = normalize( [ 2ax  +  by  +  cz  +  d,
+                                2ey  +  fz  +  g,
+                                       2hz  +  i ] )
+</pre>
+
+<p><big><b>SOME USEFUL UNIT QUADRIC SHAPES DESCRIBED AS MATRIX COEFFICIENTS</b></big><p>
+
+Here are some
+convenient matrix values to store the coefficients for some useful untransformed quadric shapes:
+
+<p><big><b>Sphere</b></big><p>
+   
+<pre>
+   xx + yy + zz &le; 1  &xrarr;   [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,-1 ]
+</pre>
+   
+<p><big><b>Cylindrical tube</b></big><p>
+   
+<pre>
+   yy + zz &le; 1  &xrarr;   [ 0,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,-1 ]        // Tube in X
+   xx + zz &le; 1  &xrarr;   [ 1,0,0,0, 0,0,0,0, 0,0,1,0, 0,0,0,-1 ]        // Tube in Y
+   xx + yy &le; 1  &xrarr;   [ 1,0,0,0, 0,1,0,0, 0,0,0,0, 0,0,0,-1 ]        // Tube in Z
+</pre>
+   
+<p><big><b>Slab</b></big><p>
+   
+<pre>
+   xx &le; 1  &xrarr;   [ 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,-1 ]             // Slab in X
+   yy &le; 1  &xrarr;   [ 0,0,0,0, 0,1,0,0, 0,0,0,0, 0,0,0,-1 ]             // Slab in Y
+   zz &le; 1  &xrarr;   [ 0,0,0,0, 0,0,0,0, 0,0,1,0, 0,0,0,-1 ]             // Slab in Z
+</pre>
+   
+<p><big><b>Cone</b></big><p>
+   
+<pre>
+  -xx + yy + zz &le; 0  &xrarr;   [ -1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,0 ]   // Cone in X
+   xx - yy = zz &le; 0  &xrarr;   [ 1,0,0,0, 0,-1,0,0, 0,0,1,0, 0,0,0,0 ]   // Cone in Y
+   xx + yy - zz &le; 0  &xrarr;   [ 1,0,0,0, 0,1,0,0, 0,0,-1,0, 0,0,0,0 ]   // Cone in Z
+</pre>
+   
+   
+<p><big><b>You can intersect a unit cylindrical tube with a unit slab to make a unit cylinder.</b></big><p>
+   
+<p>&nbsp;
+
+<hr size=200 color=white>
