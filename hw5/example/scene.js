@@ -18,8 +18,7 @@ let normalize = v => {
 let Matrix = function () {
     let m;
     let xyz = (x, y, z) => x === undefined ? [1, 1, 1] : Array.isArray(x) ? x : [x, y ?? x, z ?? x];
-    let mxm = (a, b) => a.map((A, n) => a[n & 3] * b[n & 12] + a[n & 3 | 4] * b[n & 12 | 1] + a[n & 3 | 8] * b
-    [n & 12 | 2] + a[n & 3 | 12] * b[n & 12 | 3]);
+    let mxm = (a, b) => a.map((A, n) => a[n & 3] * b[n & 12] + a[n & 3 | 4] * b[n & 12 | 1] + a[n & 3 | 8] * b[n & 12 | 2] + a[n & 3 | 12] * b[n & 12 | 3]);
     let C = t => Math.cos(t), S = t => Math.sin(t);
 
     this.get = () => m;
@@ -46,8 +45,7 @@ let Matrix = function () {
         1]);
     this.turnY = t => m = mxm(m, [C(t), 0, -S(t), 0, 0, 1, 0, 0, S(t), 0, C(t), 0, 0, 0, 0,
         1]);
-    this.turnZ = t => m = mxm(m, [C(t), S(t), 0, 0, -mS(t), C(t), 0, 0, 0, 0, 1, 0, 0, 0, 0
-        , 1]);
+    this.turnZ = t => m = mxm(m, [C(t), S(t), 0, 0, -mS(t), C(t), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 };
 
 // Declare number of objects and number of light sources
