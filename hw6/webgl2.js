@@ -34,7 +34,7 @@ function gl_start(canvas, scene) {
          let location = gl.getAttribLocation(gl.program, name);
          gl.enableVertexAttribArray(location);
          gl.vertexAttribPointer(location, size, gl.FLOAT, false, scene.vertexSize * bpe, position * bpe);
-      }
+      };
 
       for (let name in scene.vertexAttributes) {
          let attribute = scene.vertexAttributes[name];
