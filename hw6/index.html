@@ -1,0 +1,268 @@
+<body bgcolor=#80a0ff>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl2.js></script>
+<script src=library.js></script>
+<script>
+
+function Scene() {
+
+/*
+   BELOW IS AN EXAMPLE OF HOW A PHONG-SHADED MATERIAL MIGHT BE DESCRIBED.
+
+   ********** TO DO FOR HOMEWORK: **********
+
+   INCORPORATE THIS KIND OF MATERIAL INFORMATION INTO YOUR FRAGMENT
+   SHADER SO THAT YOU CAN RENDER DIFFERENT MATERIALS. SEE HOW MANY
+   DIFFERENT MATERIALS (EG: TYPES OF METAL, PLASTIC) YOU CAN CREATE.
+*/
+
+   let gold = { ambient: [.3,.2,.0], diffuse: [.3,.2,.0], specular: [.6,.4,0,20] };
+   let redPlastic = { ambient: [.3, 0., 0.], diffuse: [.4, 0., 0.], specular: [.6, .6, .6, 5]};
+   let brownWood = { ambient: [.37, .3, .2], diffuse: [.37, .3, .2], specular: [.2, .2, .2, 3]};
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+/*
+   ********** TO DO FOR HOMEWORK: **********
+
+   DEFINE A SPHERE TYPE BY IMPLEMENTING A createSphere() FUNCTION.
+   AS WE DISCUSSED IN CLASS, YOU CAN DO THIS IN ONE OF TWO WAYS:
+
+   (1) LOOP OVER u AND v TO DEFINE LONGITUDE AND LONGITUDE FOR A GLOBE:
+
+      theta = 2 * PI * u   , where 0 <= u <= 1
+      phi   = PI * v - PI/2, where 0 <= v <= 1
+
+      ANY POINT [x,y,z] ON THE SPHERE CAN THEN BE DEFINED AS:
+
+         [ cos(theta) * cos(phi) , sin(theta) * cos(phi) , sin(phi ]
+
+   (2) USE THE INFLATED CUBE METHOD:
+
+       (2a) DIVIDE EACH FACE OF THE UNIT CUBE INTO A GRID OF SUMALL SQUARES.
+
+       (2b) NORMALIZE ALL VERTICES (THAT IS, SET THEM TO UNIT LENGTH).
+
+   IN BOTH OF THE ABOVE CASES, THE SURFACE NORMAL IS THE SAME AS THE POINT,
+   BECAUSE THIS IS A UNIT SPHERE.
+*/
+   let latlon = (u, v) => {
+      let theta = 2. * Math.PI * u;
+      let phi   = Math.PI * v - Math.PI / 2.;
+      let x = Math.cos(theta) * Math.cos(phi);
+      let y = Math.sin(theta) * Math.cos(phi);
+      let z = Math.sin(phi);
+      return {x, y, z};
+   }
+
+   let createSphere = n => {
+      let vertices = [];
+      for (let i = 0; i < n; i++) {
+         for (let j = 0; j < n; j++) {
+            let u0 = i / n;
+            let u1 = (i+1) / n;
+            let v0 = j / n;
+            let v1 = (j+1) / n;
+
+            let p0 = latlon(u0, v0);
+            let p1 = latlon(u0, v1);
+            let p2 = latlon(u1, v1);
+            let p3 = latlon(u1, v0);
+
+            // not at south pole
+            if (v1 != 1.) 
+               vertices.push(
+                  p0.x,p0.y,p0.z, p0.x,p0.y,p0.z, u0,v0,
+                  p1.x,p1.y,p1.z, p1.x,p1.y,p1.z, u0,v1,
+                  p2.x,p2.y,p2.z, p2.x,p2.y,p2.z, u1,v1
+               );
+
+            // not at north pole
+            if (v0 != 0.)
+               vertices.push(
+                  p0.x,p0.y,p0.z, p0.x,p0.y,p0.z, u0,v0,
+                  p2.x,p2.y,p2.z, p2.x,p2.y,p2.z, u1,v1,
+                  p3.x,p3.y,p3.z, p3.x,p3.y,p3.z, u1,v0
+               );
+         }
+      }
+      return vertices;
+   }
+
+   let createCylinder = n => {
+      let vertices = [];
+      for (let i = 0 ; i < n ; i++) {
+         let u0 = i / n;
+         let u1 = (i+1) / n;
+         let x0 = Math.cos(2 * Math.PI * u0);
+         let y0 = Math.sin(2 * Math.PI * u0);
+         let x1 = Math.cos(2 * Math.PI * u1);
+         let y1 = Math.sin(2 * Math.PI * u1);
+         vertices.push(
+            x0,y0,-1, x0,y0,0, u0,0,  x0,y0, 1, x0,y0,0, u0,1,  x1,y1, 1, x1,y1,0, u1,1,
+            x1,y1,-1, x1,y1,0, u1,0,  x0,y0,-1, x0,y0,0, u0,0,  x1,y1, 1, x1,y1,0, u1,1,
+
+            x0,y0, 1, 0,0, 1, 0,1,   x1,y1, 1, 0,0, 1, 0,1,   0, 0, 1, 0,0, 1, 0,1,
+            x0,y0,-1, 0,0,-1, 0,0,   x1,y1,-1, 0,0,-1, 0,0,   0, 0,-1, 0,0,-1, 0,0,
+         );
+      }
+      return vertices;
+   }
+
+   let createCube = () => [
+       1,-1, 1,  1,0,0, 0,1,   1, 1,-1,  1,0,0, 1,0,   1,-1,-1,  1,0,0, 0,0,
+       1,-1, 1,  1,0,0, 0,1,   1, 1,-1,  1,0,0, 1,0,   1, 1, 1,  1,0,0, 1,1,
+      -1,-1, 1, -1,0,0, 0,1,  -1, 1,-1, -1,0,0, 1,0,  -1,-1,-1, -1,0,0, 0,0,
+      -1,-1, 1, -1,0,0, 0,1,  -1, 1,-1, -1,0,0, 1,0,  -1, 1, 1, -1,0,0, 1,1,
+
+      -1, 1, 1, 0, 1,0, 0,1,   1, 1,-1, 0, 1,0, 1,0,  -1, 1,-1, 0, 1,0, 0,0,
+      -1, 1, 1, 0, 1,0, 0,1,   1, 1,-1, 0, 1,0, 1,0,   1, 1, 1, 0, 1,0, 1,1,
+      -1,-1, 1, 0,-1,0, 0,1,   1,-1,-1, 0,-1,0, 1,0,  -1,-1,-1, 0,-1,0, 0,0,
+      -1,-1, 1, 0,-1,0, 0,1,   1,-1,-1, 0,-1,0, 1,0,   1,-1, 1, 0,-1,0, 1,1,
+
+      -1, 1, 1, 0,0, 1, 0,1,   1,-1, 1, 0,0, 1, 1,0,  -1,-1, 1, 0,0, 1, 0,0,
+      -1, 1, 1, 0,0, 1, 0,1,   1,-1, 1, 0,0, 1, 1,0,   1, 1, 1, 0,0, 1, 1,1,
+      -1, 1,-1, 0,0,-1, 0,1,   1,-1,-1, 0,0,-1, 1,0,  -1,-1,-1, 0,0,-1, 0,0,
+      -1, 1,-1, 0,0,-1, 0,1,   1,-1,-1, 0,0,-1, 1,0,   1, 1,-1, 0,0,-1, 1,1,
+   ];
+
+
+   // let createSquare = n => {
+   //    let vertices = [];
+   //    for (let x = -.5; x += 1/(n + 1); x <= .5) {
+   //       for (let y = -.5; y += 1/(n + 1); y <= .5) {
+   //          vertices.push
+   //       }
+   //    }
+   // }
+
+   this.shapes = [
+      {
+         material: gold,
+         // vertices: createCube(),
+         vertices: createSphere(8),
+      },
+      {
+         material: redPlastic,
+         vertices: createCylinder(8),
+      },
+      {
+         material: brownWood,
+         vertices: createCube()
+      }
+   ];
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+
+   uniform vec3 uAmb;
+   uniform vec3 uDif;
+   uniform vec4 uSpec;
+   
+   void main() {
+      vec3 N = normalize(vNor);
+      vec3 L = normalize(vec3(1.));
+      vec3 V = normalize(-vPos);
+      vec3 R = 2. * dot(N, L) * N - L;
+
+      float d = max(0., dot(N, L));
+      float s = d > 0. ? pow(max(0., dot(R, V)), uSpec.a) : 0.;
+      vec3 color = uAmb + uDif * d + uSpec.rgb * s;
+      fragColor = vec4(color, 1.);
+   }`;
+      
+   // d *= .5 + .5 * noise(10.*vec3(vUV,.5));
+   let m = new Matrix();
+
+   let startTime = Date.now() / 1000;
+
+   this.update = () => {
+      let time = Date.now() / 1000 - startTime;
+      time /= 3.;
+
+/*
+      WHAT YOU REALLY WANT IS TO BE ABLE TO ANIMATE
+      EACH SHAPE INDEPENDENTLY.
+
+      ********** TO DO FOR HOMEWORK: **********
+
+      GIVE EACH SHAPE ITS OWN matrix PROPERTY. THEN IN
+      FILE webgl2.js, MODIFY setInterval() SO THAT IT
+      CALLS setUniform() TO SET THE VALUES OF uMF AND
+      uMI FOR EACH SHAPE BEFORE IT CALLS drawArrays()
+      FOR THAT SHAPE.
+*/
+
+      m.identity();
+      m.perspective(10);
+      m.move(-.5, 0, 0);
+      m.turnX(time);
+      m.turnY(2*time);
+      m.turnZ(3*time);
+      m.scale(.1,.1,.5);
+
+      this.shapes[0].forward = m.get().slice();
+
+      // setUniform('Matrix4fv', 'uMF', false, m.get());
+      m.inverse();
+
+      this.shapes[0].inverse = m.get().slice();
+
+      m.identity();
+      m.perspective(10);
+      m.move(0, 0, 0);
+      m.turnX(time);
+      m.turnY(2*time);
+      m.turnZ(3*time);
+      m.scale(.1,.1,.5);
+
+      this.shapes[1].forward = m.get().slice();
+      
+      m.inverse();
+
+      this.shapes[1].inverse = m.get().slice();
+
+      m.identity();
+      m.perspective(10);
+      m.move(.5, 0, 0);
+      m.turnX(time);
+      m.turnY(2*time);
+      m.turnZ(3*time);
+      m.scale(.1,.1,.5);
+
+      this.shapes[2].forward = m.get().slice();
+
+      m.inverse();
+
+      this.shapes[2].inverse = m.get().slice();
+   }
+}
+
+gl_start(canvas, new Scene());
+</script>
+</center></body>
