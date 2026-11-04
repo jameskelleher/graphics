@@ -1,0 +1,167 @@
+<body bgcolor=#80a0ff><font face=helvetica>
+
+<!-- <input type=range id=angleSlider></input>VIEW ANGLE<br>
+<input type=range id=lengthSlider></input>ARM LENGTH<br>
+<input type=range id=widthSlider ></input>SHOULDER WIDTH<br>
+<input type=range id=radiusSlider></input>LIMB THICKNESS<br>
+<input type=range id=swingSlider ></input>ARM SWING<br> -->
+<button onclick=flipColors()>FLIP COLORS</button>
+
+<center><canvas id=canvas width=900 height=900></canvas></center>
+
+<script src=library.js></script>
+<script src=shape.js></script>
+<script src=webgl3.js></script>
+<script>
+
+let flippedColors = 1, flipColors = () => flippedColors = 1 - flippedColors;
+
+function Scene() {
+
+   // PHONG PARAMETERS OF SOME COMMON MATERIALS
+
+   let gold        = { ambient: [.3,.2,.0], diffuse: [.15,.1,0], specular: [.3,.2,.0,10] };
+   let silver      = { ambient: [.2,.2,.2], diffuse: [.1,.1,.1], specular: [.2,.2,.2,10] };
+   let redPlastic  = { ambient: [.2,.0,.0], diffuse: [.6,.0,.0], specular: [.1,.1,.1,10] };
+   let bluePlastic = { ambient: [.0,.0,.2], diffuse: [.0,.0,.6], specular: [.1,.1,.1,10] };
+   let pinkPlastic = { ambient: [.2,.1,.1], diffuse: [.6,.3,.3], specular: [.1,.1,.1,10] };
+   let black       = { ambient: [.0,.0,.0], diffuse: [.0,.0,.0], specular: [.0,.0,.0,10] };
+
+   // DEFINE VERTEX MAP, VERTEX SHADER AND FRAGMENT SHADER FOR THIS SCENE
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+   uniform vec3 uAmbient, uDiffuse;
+   uniform vec4 uSpecular;
+
+   vec3 La = vec3(-.7);                     // LIGHT SOURCE DIRECTIONS
+   vec3 Lb = vec3( .7);
+
+   vec3 W = vec3(0.,0.,-1.);                // DIRECTION FROM CAMERA INTO THE SCREEN
+
+   void main() {
+      vec3 N = normalize(vNor);             // PHONG SHADING FROM TWO LIGHT SOURCES
+      vec3 R = 2. * dot(W,N) * N - W;
+      vec3 color = uAmbient
+         + uDiffuse * max(0.,dot(N,La)) + uSpecular.rgb * pow(max(0.,dot(R,La)), uSpecular.a)
+         + uDiffuse * max(0.,dot(N,Lb)) + uSpecular.rgb * pow(max(0.,dot(R,Lb)), uSpecular.a) * 0.;
+      fragColor = vec4(sqrt(color),1.);
+   }`;
+
+   let startTime = Date.now() / 1000, m = new Matrix();
+
+   // DEFINE SHAPES THAT WE WILL USE IN THIS SCENE
+
+   // let sphere = Shape.sphere(16,8);
+   let tire = Shape.torus(5, .5, 32, 8);
+   let wheel = Shape.torus(4.7, .4, 32, 8);
+   let spoke = Shape.cylinder(8);
+   let shaft = Shape.cylinder(16);
+   let bikePart = Shape.cylinder(8);
+
+   // RENDER ONE ANIMATION FRAME
+
+   let drawWheel = time => {
+      m.turnZ(time/2);
+      m.turnX(Math.PI / 2);
+
+      draw(tire, black, m);
+      draw(wheel, silver, m);
+
+
+      let numSpokes = 12;
+      for (let i = 0; i < numSpokes; i++) {
+         m.push();
+            m.turnY(i * 2 * Math.PI / numSpokes);
+            m.scale(.1, .1, 2.3);
+            m.move(0, 0, -1.2);
+            draw(spoke, silver, m);
+         m.pop();
+      }
+
+      m.turnX(Math.PI/2);
+      m.scale(.45, .45, 1);
+      draw(shaft, black, m);
+   }
+
+   this.update = () => {
+
+      let time = Date.now() / 1000 - startTime;
+
+      m.identity();
+      m.perspective(10);
+      m.scale(.1, .1, .1);
+
+      m.turnY(time/3);
+
+
+      m.push();
+         m.move(-6, -4, 0);
+
+         m.push();
+            m.scale(.6, .6, .6);
+            drawWheel(time);
+         m.pop();
+
+         m.turnY(Math.PI/2);
+         m.turnX(-Math.PI/4-.4);
+         m.move(-.2, 0, 2.5);
+
+         m.push();
+            m.scale(.3, .3, 2.5);
+            draw(bikePart, redPlastic, m);
+         m.pop();
+
+         m.move(0, 0, 2.5);
+         m.turnX(Math.PI-.8);
+         m.move(0, 0, 2.5);
+
+         m.push();
+            m.scale(.3, .3, 2.5);
+            draw(bikePart, redPlastic, m);
+         m.pop();
+      m.pop();
+         
+      m.push();
+         m.move(6, -4, 0);
+
+         m.push();
+            m.scale(.6, .6, .6);
+            drawWheel(time);
+         m.pop();
+      m.pop();
+         
+   }
+}
+
+gl_start(canvas, new Scene());
+</script>
+
+</body>

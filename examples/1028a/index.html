@@ -1,0 +1,108 @@
+<body bgcolor=#80a0ff>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl2.js></script>
+<script src=library.js></script>
+<script src=shape.js></script>
+<script>
+
+function Scene() {
+
+   // PHONG PARAMETERS OF SOME MATERIALS
+
+   let gold        = { ambient: [.3,.2,.0], diffuse: [.15,.1,0], specular: [.3,.2,0,10] };
+   let silver      = { ambient: [.2,.2,.2], diffuse: [.1,.1,.1], specular: [.2,.2,.2,10] };
+   let redPlastic  = { ambient: [.2,.0,.0], diffuse: [.6,.0,.0], specular: [.1,.1,.1,10] };
+   let bluePlastic = { ambient: [.0,.0,.2], diffuse: [.0,.0,.6], specular: [.1,.1,.1,10] };
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   this.shapes = [
+      { material: redPlastic , vertices: Shape.sphere(16,8) },
+      { material: bluePlastic, vertices: Shape.sphere(16,8) },
+   ];
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+   uniform vec3 uAmbient, uDiffuse;
+   uniform vec4 uSpecular;
+
+   vec3 La = vec3(-.7);                     // LIGHT SOURCE DIRECTIONS
+   vec3 Lb = vec3( .7);
+
+   vec3 W  = vec3(0.,0.,-1.);               // VECTOR FROM CAMERA INTO THE SCREEN
+
+   void main() {
+      vec3 N = normalize(vNor);             // PHONG SHADING WITH TWO LIGHT SOURCES
+      vec3 R = 2. * dot(W,N) * N - W;
+      vec3 color = uAmbient + uDiffuse * max(0.,dot(N,La)) + uSpecular.rgb * pow(max(0.,dot(R,La)), uSpecular.a)
+                            + uDiffuse * max(0.,dot(N,Lb)) + uSpecular.rgb * pow(max(0.,dot(R,Lb)), uSpecular.a);
+      fragColor = vec4(sqrt(color),1.);
+   }`;
+
+   let m = new Matrix();
+
+   let startTime = Date.now() / 1000;
+
+   let d = .2;             // HALF LENGTH OF EACH LIMB
+   let r = .07;            // RADIUS OF EACH LIMB
+
+   this.update = () => {
+      let time = Date.now() / 1000 - startTime;
+
+      let c = Math.cos(time);
+      let s = Math.sin(time);
+
+      m.identity();
+      m.perspective(10);
+
+      m.push();
+
+         m.turnZ(c);          // SHOULDER
+         m.move(d,0,0);
+
+	 m.push();            // UPPER ARM
+	    m.scale(d,r,r);
+            this.shapes[0].matrix = m.get();
+	 m.pop();
+
+         m.move(d,0,0);
+         m.turnZ(s);          // ELBOW
+         m.move(d,0,0);
+
+	 m.push();            // LOWER ARM
+	    m.scale(d,r,r);
+            this.shapes[1].matrix = m.get();
+	 m.pop();
+
+      m.pop();
+   }
+}
+
+gl_start(canvas, new Scene());
+</script>
+

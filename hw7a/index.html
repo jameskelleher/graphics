@@ -1,0 +1,170 @@
+<body bgcolor=#80a0ff>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl2.js></script>
+<script src=library.js></script>
+<script src=shape.js></script>
+<script>
+
+function Scene() {
+
+   // PHONG PARAMETERS OF SOME MATERIALS
+
+   let gold        = { ambient: [.3,.2,.0], diffuse: [.15,.1,0], specular: [.3,.2,0,10] };
+   let silver      = { ambient: [.2,.2,.2], diffuse: [.1,.1,.1], specular: [.2,.2,.2,10] };
+   let redPlastic  = { ambient: [.2,.0,.0], diffuse: [.6,.0,.0], specular: [.1,.1,.1,10] };
+   let bluePlastic = { ambient: [.0,.0,.2], diffuse: [.0,.0,.6], specular: [.1,.1,.1,10] };
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   this.shapes = [
+      { material: redPlastic , vertices: Shape.sphere(16,8) },
+      { material: bluePlastic, vertices: Shape.sphere(16,8) },
+      { material: redPlastic , vertices: Shape.sphere(16,8) },
+      { material: bluePlastic, vertices: Shape.sphere(16,8) },
+      { material: redPlastic , vertices: Shape.sphere(16,8) },
+      { material: bluePlastic, vertices: Shape.sphere(16,8) },
+      { material: redPlastic , vertices: Shape.sphere(16,8) },
+      { material: bluePlastic, vertices: Shape.sphere(16,8) },
+      { material: gold,        vertices: Shape.sphere(16, 16)},
+      { material: silver,      vertices: Shape.sphere(16, 16)},
+   ];
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+   uniform vec3 uAmbient, uDiffuse;
+   uniform vec4 uSpecular;
+
+   vec3 La = vec3(-.7);                     // LIGHT SOURCE DIRECTIONS
+   vec3 Lb = vec3( .7);
+
+   vec3 W  = vec3(0.,0.,-1.);               // VECTOR FROM CAMERA INTO THE SCREEN
+
+   void main() {
+      vec3 N = normalize(vNor);             // PHONG SHADING WITH TWO LIGHT SOURCES
+      vec3 R = 2. * dot(W,N) * N - W;
+      vec3 color = uAmbient + uDiffuse * max(0.,dot(N,La)) + uSpecular.rgb * pow(max(0.,dot(R,La)), uSpecular.a)
+                            + uDiffuse * max(0.,dot(N,Lb)) + uSpecular.rgb * pow(max(0.,dot(R,Lb)), uSpecular.a);
+      fragColor = vec4(sqrt(color),1.);
+   }`;
+
+   let m = new Matrix();
+
+   let startTime = Date.now() / 1000;
+
+   let d = .2;             // HALF LENGTH OF EACH LIMB
+   let r = .07;            // RADIUS OF EACH LIMB
+
+   this.update = () => {
+      let time = Date.now() / 1000 - startTime;
+
+      m.identity();
+      m.perspective(10);
+      // m.turnY(time/2);
+      m.turnY(-Math.PI/4);
+
+      m.turnY(Math.sin(time + Math.PI/2) * .2)
+
+      for (let side = 0; side <=1; side++) {
+         let c = Math.cos(time - .2 + Math.PI * side);
+         let s = Math.sin(time - .2 + Math.PI * side);
+
+         c *= .8;
+         s *= .8;
+
+         m.push();
+
+            m.move(0, .3, -.2 + .4 * side);
+
+            m.turnZ(c*.9-1.5);          // SHOULDER
+            m.move(d,0,0);
+
+            m.push();            // UPPER ARM
+               m.scale(d,r,r);
+               this.shapes[side*4].matrix = m.get();
+            m.pop();
+
+            m.move(d,0,0);
+            m.turnZ(s+1);          // ELBOW
+            m.move(d*.9,0,0);
+
+            m.push();            // LOWER ARM
+               m.scale(d*.9,r,r);
+               this.shapes[side*4+1].matrix = m.get();
+            m.pop();
+
+         m.pop();
+
+         // LEGS
+
+         c = Math.cos(time + Math.PI * (side + 1));
+         s = Math.cos(time + Math.PI * (side + 1));
+         m.push();
+            m.move(.02, -.22, -.1 + .2 * side);
+            m.turnZ(c*.65 - .1);
+            m.move(0, -d*1.1, 0);
+
+            m.push();
+               m.scale(r*1.1, d*1.1, r*1.1);
+               this.shapes[side*4+2].matrix = m.get();
+            m.pop();
+
+            s = Math.cos(time - 2.5 + Math.PI * (side + 1));
+
+            m.move(0, -d*1.1, 0);
+            m.turnZ(s*.8-.8);
+            m.move(0, -d, 0);
+
+            m.push();
+               m.scale(r, d, r);
+               this.shapes[side*4+3].matrix = m.get();
+            m.pop();
+
+         m.pop();
+      }
+
+      // body
+      let c = Math.cos(time * 2) * .01;
+      m.push();
+         m.move(0, .08+c, 0);
+         m.scale(.15, .35, .2);
+         this.shapes[8].matrix = m.get();
+      m.pop();
+
+      // head
+      c *= 1.3
+      m.push();
+         m.move(0, .6+c, 0)
+         m.scale(.15, .15, .15);
+         this.shapes[9].matrix = m.get();
+      m.pop();
+   }
+}
+
+gl_start(canvas, new Scene());
+</script></center></body>
+

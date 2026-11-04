@@ -1,0 +1,111 @@
+<body bgcolor=#80a0ff>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl2.js></script>
+<script src=library.js></script>
+<script src=shape.js></script>
+<script>
+
+function Scene() {
+
+   let gold       = { ambient: [.3,.2,.0], diffuse: [.15,.1,0], specular: [.3,.2,0,10] };
+   let silver     = { ambient: [.2,.2,.2], diffuse: [.1,.1,.1], specular: [.2,.2,.2,10] };
+   let redPlastic = { ambient: [.2,.0,.0], diffuse: [.6,.0,.0], specular: [.3,.3,.3,10] };
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   this.shapes = [
+      {
+         material: gold,
+         vertices: Shape.sphere(16,8),
+      },
+      {
+         material: redPlastic,
+         vertices: Shape.cylinder(8),
+      },
+      {
+         material: silver,
+         vertices: Shape.sphere(16,8),
+      },
+   ];
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+   uniform vec3 uAmbient, uDiffuse;
+   uniform vec4 uSpecular;
+
+   vec3 La = vec3(-.7);
+   vec3 Lb = vec3( .7);
+   vec3 W  = vec3(0.,0.,-1.);
+
+   void main() {
+      vec3 N = normalize(vNor);
+      vec3 R = W - 2. * dot(W,N) * N;
+
+      vec3 color = uAmbient
+         + uDiffuse * max(0.,dot(N,La)) + uSpecular.rgb * pow(max(0.,dot(R,La)), uSpecular.a);
+         + uDiffuse * max(0.,dot(N,Lb)) + uSpecular.rgb * pow(max(0.,dot(R,Lb)), uSpecular.a);
+
+      fragColor = vec4(sqrt(color),1.);
+   }`;
+
+   let m = new Matrix();
+
+   let startTime = Date.now() / 1000;
+
+   this.update = () => {
+      let time = Date.now() / 1000 - startTime;
+
+      m.identity();
+      m.perspective(10);
+      m.turnX(1*time);
+      m.turnY(2*time);
+      m.turnZ(3*time);
+      m.scale(.1,.1,.5);
+      this.shapes[0].matrix = m.get();
+
+      m.identity();
+      m.perspective(10);
+      m.turnX(2*time);
+      m.turnY(3*time);
+      m.turnZ(1*time);
+      m.scale(.1,.1,.5);
+      this.shapes[1].matrix = m.get();
+
+      m.identity();
+      m.perspective(10);
+      m.turnX(3*time);
+      m.turnY(1*time);
+      m.turnZ(2*time);
+      m.scale(.1,.1,.5);
+      this.shapes[2].matrix = m.get();
+   }
+}
+
+gl_start(canvas, new Scene());
+</script>
+
