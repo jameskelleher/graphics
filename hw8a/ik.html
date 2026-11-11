@@ -1,0 +1,85 @@
+<font face=helvetica>
+<b>TWO LINK INVERSE KINEMATICS</b>
+<p>
+<input type=range id=A></input>Upper arm length<br>
+<input type=range id=B></input>Lower arm length<br>
+<p>
+<canvas id=canvas1 width=500 height=500></canvas>
+
+<script>
+
+let dot = (a,b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+
+/*
+    TWO LINK INVERSE KINEMATICS.
+    THE SHOULDER IS ASSUMED TO BE AT [0,0,0]/
+
+    a: LENGTH OF FIRST LIMB.
+    b: LENGTH OF SECOND LIMB.
+    C: POSITION OF WRIST.
+    D: INPUT: AIM DIRECTION FOR ELBOW.
+       OUTPUT: POSITION OF ELBOW.
+*/
+
+let ik = (a,b,C,D) => {
+   let cc = dot(C,C), x = (1 + (a*a - b*b)/cc) / 2, y = dot(C,D)/cc;
+   for (let i = 0 ; i < 3 ; i++) D[i] -= y * C[i];
+   y = Math.sqrt(Math.max(0,a*a - cc*x*x) / dot(D,D));
+   for (let i = 0 ; i < 3 ; i++) D[i] = x * C[i] + y * D[i];
+   return D;
+}
+
+let ctx = canvas1.getContext('2d');
+ctx.lineWidth = 10;
+
+// SET POSITION OF SHOULDER
+
+let x0 = 100, y0 = 250;
+
+// CONTINUE DRAWING IN AN ANIMATION LOOP
+
+setInterval(() => {
+   let time = Date.now() / 1000;
+
+   // POSITION THE WRIST
+
+   let x = 250 + 30 * Math.sin(3 * time);
+   let y =       30 * Math.cos(3 * time);
+
+   // SET INPUT PARAMETERS FOR IK AND CALL IK
+
+   let a = 3 * A.value;
+   let b = 3 * B.value;
+   let C = [x,y,0];
+   let D = [0,1,0];
+
+   ik(a, b, C, D);
+
+   // CLEAR THE CANVAS
+
+   ctx.fillStyle = '#f0f0f0';
+   ctx.fillRect(0,0,canvas1.width, canvas1.height);
+
+   // DRAW THE SHOULDER AND WRIST
+
+   ctx.fillStyle = '#000000';
+
+   ctx.beginPath();
+   ctx.arc(x0, y0, 15, 0, 2 * Math.PI);
+   ctx.fill();
+
+   ctx.beginPath();
+   ctx.arc(x0+C[0], y0+C[1], 10, 0, 2 * Math.PI);
+   ctx.fill();
+
+   // DRAW THE ARM
+
+   ctx.beginPath();
+   ctx.moveTo(x0, y0);
+   ctx.lineTo(x0+D[0], y0+D[1]);
+   ctx.lineTo(x0+C[0], y0+C[1]);
+   ctx.stroke();
+
+}, 30);
+
+</script>

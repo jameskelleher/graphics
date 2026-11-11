@@ -1,0 +1,52 @@
+<font face=helvetica>EXAMPLE OF NOISE IN JAVASCRIPT
+<p>
+<canvas id=canvas1 width=500 height=500></canvas>
+
+<script>
+
+// JAVASCRIPT VERSION OF NOISE FUNCTION (PRODUCES SAME RESULTS AS THE GPU VERSION)
+
+let noise = (x,y,z) => {
+   let normalize = v => { let s = Math.sqrt(dot(v,v)); return v.map(a => a/s); }
+   let c = Math.cos,floor = Math.floor,dot = (a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+   let r = (x,y,z) => c(5 * (x + 5 * c(5 * (y + 5 * c(5 * (z + 5 * c(5 * x)))))));
+   let s = (x,y,z) => normalize([ r(x,y,z), r(y,z,x), r(z,x,y) ]);
+   let i = floor(x), j = floor(y), k = floor(z), u = x-i, v = y-j, w = z-k;
+   let t = (x,y,z) => dot( s(i+x, j+y, k+z), [u-x, v-y, w-z] );
+   let e = (f,a,b) => a + (b - a) * (f < .5 ? 2*f*f : 2*f*(2-f)-1);
+   return e(w, e(v, e(u, t(0,0,0), t(1,0,0)), e(u, t(0,1,0), t(1,1,0))),
+               e(v, e(u, t(0,0,1), t(1,0,1)), e(u, t(0,1,1), t(1,1,1))));
+}
+
+let ctx = canvas1.getContext('2d');
+ctx.lineWidth = 3;
+
+// DEFINE FUNCTIONS TO VARY X AND Y BY CALLING NOISE
+
+let fx = (t,u) => 250 + 350 * noise(t, u, 200.5);
+let fy = (t,u) => 250 + 350 * noise(t, u, 400.5);
+
+// ANIMATION LOOP
+
+setInterval(() => {
+
+   // USE THE CURRENT TIME
+
+   let time = Date.now() / 1000;
+
+   // CLEAR THE CANVAS
+
+   ctx.fillStyle = '#fff0f0';
+   ctx.fillRect(0,0,canvas1.width, canvas1.height);
+
+   // MAKE A TIME-VARYING SCRIBBLE
+
+   ctx.beginPath();
+   ctx.moveTo(fx(time,0), fy(time,0));
+   for (let t = 0 ; t < 1 ; t += 1/200)
+      ctx.lineTo(fx(time,10*t), fy(time,10*t));
+   ctx.stroke();
+
+}, 30);
+
+</script>
