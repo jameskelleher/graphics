@@ -5,10 +5,30 @@
 <input type=range id=widthSlider ></input>SHOULDER WIDTH<br>
 <input type=range id=radiusSlider></input>LIMB THICKNESS<br>
 <input type=range id=swingSlider ></input>ARM SWING<br> -->
-<label>
-  <input type="checkbox" name="rotateBike" id="rotateBike">
-  rotate bike
-</label>
+<div>
+   <label><input type="checkbox" name="rotateBike" id="rotateBike">rotate bike</label>
+</div>
+<div>
+   <label><input type="checkbox" name="steer" id="steer" checked>steer</label>
+</div>
+<div>
+   <label><input type="checkbox" name="rock" id="rock" checked>rock</label>
+</div>
+<div>
+   <label><input type="range" min="0" max="15" value="5" class="slider" step="0.1" id="pedalSpeed">pedal speed</label>
+</div>
+<div>
+   <label><input type="range" min="0" max="6.283" value="0" class="slider" step="0.1" id="turnX">turnX</label>
+</div>
+<div>
+   <label><input type="range" min="0" max="6.283" value="0" class="slider" step="0.1" id="turnY">turnY</label>
+</div>
+<div>
+   <label><input type="range" min="0" max="6.283" value="0" class="slider" step="0.1" id="turnZ">turnZ</label>
+</div>
+<div>
+   <label><input type="range" min="0" max="3" value="1.1" class="slider" step="0.1" id="cake">cake</label>
+</div>
 
 <center><canvas id=canvas width=900 height=900></canvas></center>
 
@@ -101,7 +121,8 @@ function Scene() {
 
          // hip
          m.push();
-            m.scale(1.1);
+            m.scale(document.getElementById("cake").value)
+            // m.scale(1.2);
             draw(joint, gold, m);
          m.pop();
 
@@ -159,7 +180,7 @@ function Scene() {
          let s = Math.sin(time) * radius;
          let c = Math.cos(time) * radius;
 
-         let C = [4.2 + s, -2.3, dz + c];
+         let C = [4.2 + s, -2.3 + s, dz + c];
          let D = [0, -1, 0];
 
          let scl = 3.1;
@@ -272,6 +293,71 @@ function Scene() {
 
          m.turnX(Math.PI/2-.2);
          m.turnZ(Math.sin(-noiseTime));
+
+         // HANDLEBAR SYSTEM
+         m.push();
+            m.turnX(Math.PI);
+            m.move(0, 0, .65);
+
+            m.push();
+               m.scale(.15, .15, .65);
+               draw(bikePart, silver, m);
+            m.pop();
+
+            m.move(0, 0, .65);
+            m.turnX(Math.PI/3);
+            m.move(0, 0, .5);
+
+            m.push();
+               m.scale(.15, .15, .5);
+               draw(bikePart, silver, m);
+            m.pop();
+
+            m.move(0, 0, .5);
+
+            // RIGHT HANDLE
+            m.push();
+               m.turnZ(Math.PI/3);
+               m.turnX(-Math.PI/3);
+               
+               m.move(0, 0, 0.8);
+
+               m.push();
+                  m.scale(.15, .15, 0.8);
+                  draw(bikePart, silver, m);
+               m.pop();
+
+               m.move(0, 0, 0.8);
+
+               m.turnZ(2.8);
+               m.turnX(1.2);
+            
+               m.move(0, 0, 0.8);
+               m.scale(.15, .15, 0.8);
+               draw(bikePart, black, m);
+
+            m.pop();
+
+            // LEFT HANDLE
+            m.turnZ(-Math.PI/3);
+            m.turnX(-Math.PI/3);
+            m.move(0, 0, 0.8)
+            m.push();
+               m.scale(.15, .15, 0.8);
+               draw(bikePart, silver, m);
+            m.pop();
+
+            m.move(0, 0, 0.8);
+
+            m.turnZ(-2.8);
+            m.turnX(1.2);
+         
+            m.move(0, 0, 0.8);
+            m.scale(.15, .15, 0.8);
+            draw(bikePart, black, m);
+         m.pop();
+
+
          m.move(0, 0, 1.05-.5);
 
          // LITTLE CONNECTING BAR
@@ -341,20 +427,27 @@ function Scene() {
    this.update = () => {
 
       let time = Date.now() / 1000 - startTime;
-      let noiseTime = 1.9 * noise(time, 1, 1.5);
 
-      let pedalTime = time * 4;
+      let doSteer = document.getElementById("steer").checked
+      let noiseTime = doSteer ? 1.9 * noise(time, 1, 1.5) : 0;
+
+      let pedalTime = time * document.getElementById("pedalSpeed").value;
       let theta, dx, dy, dz;
 
       m.identity();
       m.perspective(10);
       m.scale(.1, .1, .1);
-      m.move(0, -2, 0);
+      m.move(0, 0, -1);
 
       if (document.getElementById('rotateBike').checked)
          m.turnY(time/3);
 
-      m.turnZ(Math.sin(.5 * noise(time/5, 500, 500)));
+      m.turnX(document.getElementById("turnX").value);
+      m.turnY(document.getElementById("turnY").value)
+      m.turnZ(document.getElementById("turnZ").value)
+
+      let doRock = document.getElementById("rock").checked;
+      m.turnZ(doRock * Math.sin(.5 * noise(time/5, 500, 500)));
 
       m.turnX(Math.sin(-noiseTime*.3));
 
