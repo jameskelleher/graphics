@@ -1,0 +1,136 @@
+<body>
+<center><canvas id=canvas width=800 height=800></canvas></center>
+<script src=library.js></script>
+<script src=shape.js></script>
+<script src=webgl4.js></script>
+<script>
+function Scene() {
+
+   // DEFINE SOME USEFUL MATERIALS
+
+   let gold         = { ambient: [.3,.2,.0], diffuse: [.15,.1,0], specular: [.1,.2/3,.0,10] };
+   let whitePlastic = { ambient: [.2,.2,.2], diffuse: [.6,.6,.6], specular: [.1,.1,.1,10] };
+
+   // DEFINE VERTEX MAP, VERTEX SHADER AND FRAGMENT SHADER FOR THIS SCENE
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos, aNor;
+   in  vec2 aUV;
+   out vec3 vPos, vNor;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   void main() {
+      vec4 pos = uMF * vec4(aPos, 1.);
+      vec4 nor = vec4(aNor, 0.) * uMI;
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.;
+      vNor = nor.xyz;
+      vUV = aUV;
+      gl_Position = vec4(vPos, 1.);
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   in  vec3 vPos, vNor;
+   in  vec2 vUV;
+   out vec4 fragColor;
+   uniform vec3 uAmbient, uDiffuse;
+   uniform vec4 uSpecular;
+
+   uniform sampler2D uSampler[16];          // YOU CAN HAVE UP TO 16 TEXTURES
+   uniform int uTexture;                    // INDEX OF THE ACTIVE TEXTURE
+
+   vec3 La = vec3(-.7);                     // LIGHT SOURCE DIRECTIONS
+   vec3 Lb = vec3( .7);
+
+   vec3 W = vec3(0.,0.,-1.);                // DIRECTION FROM CAMERA INTO THE SCREEN
+
+   void main() {
+      vec3 N = normalize(vNor);             // PHONG SHADING FROM TWO LIGHT SOURCES
+      vec3 R = W - 2. * dot(W,N) * N;
+      vec3 color = uAmbient
+         + (uDiffuse * max(0.,dot(N,La)) + uSpecular.rgb * pow(max(0.,dot(R,La)), uSpecular.a)) * .5
+         +  uDiffuse * max(0.,dot(N,Lb)) + uSpecular.rgb * pow(max(0.,dot(R,Lb)), uSpecular.a);
+
+      if (uTexture == 0) color *= texture(uSampler[0], vUV).rgb;
+      if (uTexture == 1) color *= texture(uSampler[1], vUV).rgb;
+      if (uTexture == 2) color *= texture(uSampler[2], vUV).rgb;
+      if (uTexture == 3) color *= texture(uSampler[3], vUV).rgb;
+
+      fragColor = vec4(sqrt(color),1.);
+   }`;
+
+   let startTime = Date.now() / 1000, blinkTime = 0, m = new Matrix();
+
+   // DEFINE SHAPES THAT WE WILL USE IN THIS SCENE
+
+   let cube     = Shape.cube();
+   let cylinder = Shape.cylinder(16);
+   let sphere   = Shape.sphere(16,8);
+
+   this.init = () => {
+      setUniform('1iv', 'uSampler', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+      loadTexture(0, 'brick.png');
+      loadTexture(1, 'polka_dots.png');
+      loadTexture(2, 'zellie.png');
+   }
+
+   // RENDER ONE ANIMATION FRAME
+
+   this.update = () => {
+
+      let time = Date.now() / 1000 - startTime;
+
+      // DEFINE THE CURRENT VIEW INTO THE SCENE
+
+      m.identity();
+      m.perspective(10);
+
+      // DRAW THE SHAPES
+
+      m.push();
+         m.move(-.5,.5,0);
+         m.turnX(.2)
+         m.turnY(time)
+         m.scale(.3)
+         draw(sphere, gold, m, 2);
+      m.pop();
+
+      m.push();
+         m.move(.5,.5,0);
+         m.turnX(.2);
+         m.turnY(time);
+	 m.scale(.3);
+	 draw(cylinder, whitePlastic, m, 2);
+      m.pop();
+
+      m.push();
+         m.move(-.5,-.5,0);
+         m.turnX(.2);
+         m.turnY(time);
+	 m.scale(.3);
+	 draw(cube, whitePlastic, m, 2);
+      m.pop();
+
+      m.push();
+         m.move(.5,-.5,0);
+         m.turnX(.2);
+         m.turnY(time);
+	 m.scale(.3);
+	 draw(cube, whitePlastic, m, 2);
+      m.pop();
+   }
+}
+
+gl_start(canvas, new Scene());
+</script>
+
+</body>

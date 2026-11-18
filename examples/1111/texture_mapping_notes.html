@@ -1,0 +1,106 @@
+<font face=helvetica size=10>
+<center>
+
+<hr color=white size=801>
+
+<b>TEXTURE MAPPING</b>
+
+
+<hr color=white size=801>
+
+<pre>
+In a web browser, you cannot
+load textures from a local &nbsp;
+file, for security reasons.&nbsp;
+
+You must run a local server,
+then launch your scene as: &nbsp;
+
+
+<b>https://localhost:8000</b>
+</pre>
+
+<hr color=white size=801>
+
+<pre>
+<b>I use a python server for textures:</b>
+
+<a href=https://python.org/downloads>
+https://python.org/downloads</a>
+</pre>
+
+<hr color=white size=801>
+
+<pre>
+<b>To start the server in a terminal window:</b>
+
+
+python3 -m http.server &nbsp;
+
+or &nbsp;
+
+python3 -m http.server &
+</pre>
+
+<hr color=white size=801>
+
+<b>ANTIALIASING BY MIPMAPPING</b>
+
+<hr color=white size=801>
+
+<img height=400 src=mipmap/mipmapping-left-only.png></img>
+
+<hr color=white size=801>
+
+<img height=600 src=mipmap/lance.png></img>
+
+<hr color=white size=801>
+
+<pre>
+The texture source&nbsp;
+image is converted&nbsp;
+into a power-of-two
+pyramid of images.&nbsp;
+</pre>
+
+<hr color=white size=801>
+
+<img height=400 src=mipmap/mipmap_sequence.png></img>
+
+<hr color=white size=801>
+
+<pre>
+When the GPU samples the
+image, it interpolates
+along 3 dimensions:
+
+
+<b>u:</b> horizontally &nbsp;
+<b>v:</b> vertically &nbsp; &nbsp;
+<b>s:</b> between levels
+</pre>
+
+<hr color=white size=801>
+
+<img height=600 src=mipmap/mipmap2.png></img>
+
+<hr color=white size=801>
+
+<img height=400 src=mipmap/mipmapping-comparison.png></img>
+
+<hr color=white size=801>
+
+<img height=600 src=mipmap/lance_mipmap.png></img>
+
+<hr color=white size=801>
+
+<pre>
+<b>RESTRICTION:</b>
+
+The width and height of your
+texture source image both
+need to be powers of 2.
+</pre>
+
+<hr color=white size=801>
+

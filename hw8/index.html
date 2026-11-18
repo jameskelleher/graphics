@@ -116,53 +116,52 @@ function Scene() {
       let dx = 2.6, dy = -6.8;
       let a = 3.9, b = 4.6;
 
-      let HIP = [0, 0, 0];
-         m.move(HIP[0], HIP[1], HIP[2]);
+      // let HIP = [0, 0, 0];
+         // m.move(HIP[0], HIP[1], HIP[2]);
 
          // hip
-         m.push();
-            m.scale(document.getElementById("cake").value)
-            // m.scale(1.2);
-            draw(joint, gold, m);
-         m.pop();
-
-         let x = dx + 2 * Math.cos(-time)/2;
-         let y = dy + 2 * Math.sin(-time)/2
-         let C = [x, y, 0];
-         let D = [1, 0, 0];
-
-         ik(a, b, C, D);
-
-         // thigh
-         m.push();
-            dx = D[0]/2; dy = D[1]/2; dz = D[2]/2;
-            theta = Math.atan2(dy, dx);
-            m.move(dx, dy, dz);
-            m.turnZ(theta);
-            m.scale(a*.6, 0.8, 0.8);
-            draw(joint, silver, m);
-         m.pop();
-            
-         // knee
-         m.push();
-            m.move(D[0], D[1], D[2]);
-            m.scale(.8);
-            draw(joint, gold, m);
-         m.pop();
-            
-         // shin
-         m.push();
-            dx = (C[0]+D[0])/2; dy = (C[1]+D[1])/2; dz = (C[2]+D[2])/2;
-            theta = Math.atan2(C[1]-D[1], C[0]-D[0]);
-            m.move(dx, dy, dz);
-            m.turnZ(theta);
-            m.scale(b*.6, 0.5, 0.5);
-            draw(joint, silver, m);
-         m.pop();
-         
-         // foot
-         m.move(C[0], C[1], C[2]);
+      m.push();
+         m.scale(document.getElementById("cake").value)
          draw(joint, gold, m);
+      m.pop();
+
+      let x = dx + Math.cos(-time);
+      let y = dy + Math.sin(-time);
+      let C = [x, y, 0];
+      let D = [1, 0, 0];
+
+      ik(a, b, C, D);
+
+      // thigh
+      m.push();
+         dx = D[0]/2; dy = D[1]/2; dz = D[2]/2;
+         theta = Math.atan2(dy, dx);
+         m.move(dx, dy, dz);
+         m.turnZ(theta);
+         m.scale(a*.6, 0.8, 0.8);
+         draw(joint, silver, m);
+      m.pop();
+         
+      // knee
+      m.push();
+         m.move(D[0], D[1], D[2]);
+         m.scale(.8);
+         draw(joint, gold, m);
+      m.pop();
+         
+      // shin
+      m.push();
+         dx = (C[0]+D[0])/2; dy = (C[1]+D[1])/2; dz = (C[2]+D[2])/2;
+         theta = Math.atan2(C[1]-D[1], C[0]-D[0]);
+         m.move(dx, dy, dz);
+         m.turnZ(theta);
+         m.scale(b*.6, 0.5, 0.5);
+         draw(joint, silver, m);
+      m.pop();
+      
+      // foot
+      m.move(C[0], C[1], C[2]);
+      draw(joint, gold, m);
    }
 
    let drawArm = (time, radius) => {
@@ -437,7 +436,7 @@ function Scene() {
       m.identity();
       m.perspective(10);
       m.scale(.1, .1, .1);
-      m.move(0, 0, -1);
+      m.move(0, 0, -1);  // move away from clipping plane
 
       if (document.getElementById('rotateBike').checked)
          m.turnY(time/3);
